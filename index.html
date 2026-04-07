@@ -200,11 +200,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </head>
 <body>
 
-<!-- UPLOAD SCREEN -->
-<div id="upload-screen">
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;">
+  <div style="background:#181c27;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:2.5rem;width:100%;max-width:360px;">
+    <div style="font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:#545d78;margin-bottom:1.5rem;">Dealer Group Dashboard</div>
+    <div style="font-size:20px;font-weight:300;margin-bottom:.3rem;">Welcome</div>
+    <div style="font-size:12px;color:#545d78;margin-bottom:1.5rem;">Enter your password to view the dashboard</div>
+    <input id="view-pw" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')checkLogin()"
+      style="width:100%;background:#1e2333;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:10px 14px;color:#f0f2f8;font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:10px;outline:none;">
+    <button onclick="checkLogin()"
+      style="width:100%;background:#3b82f6;color:white;border:none;padding:11px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">Sign in</button>
+    <div id="login-err" style="font-size:12px;color:#ef4444;margin-top:8px;min-height:16px;"></div>
+  </div>
+</div>
+
+<!-- UPLOAD SCREEN (replaced by Supabase — kept for structure) -->
+<div id="upload-screen" style="display:none;">
   <div class="upload-logo">Dealer Group · Performance Dashboard</div>
-  <div class="upload-title">Drop your reports to get started</div>
-  <div class="upload-sub">Upload Dealertrack exports for each store. Mix and match — upload what you have.</div>
+  <div class="upload-title" id="loading-title">Loading dashboard...</div>
+  <div class="upload-sub" id="loading-sub">Fetching latest data</div>
 
   <div class="store-sections">
     <div class="store-section">
@@ -280,8 +294,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     </div>
   </div>
 
-  <button class="launch-btn" id="launch-btn" onclick="launchDashboard()" disabled>View Dashboard</button>
-  <div class="upload-note">Upload any combination of reports — you don't need all nine. Data stays in your browser only.</div>
+  <div id="loading-bar" style="width:240px;height:3px;background:#1e2333;border-radius:2px;margin-top:1rem;overflow:hidden;">
+    <div id="loading-progress" style="height:100%;background:#3b82f6;border-radius:2px;width:0%;transition:width .4s;"></div>
+  </div>
+  <div id="loading-err" style="font-size:12px;color:#ef4444;margin-top:1rem;display:none;"></div>
 </div>
 
 <!-- DASHBOARD -->
@@ -1015,6 +1031,97 @@ function buildWipView(store, container) {
   const techLbls=laborRows.filter(r=>r.name!=='HOUSE TECH').map(r=>techDisplayName(r.name));
   const wtc=`wip-tech-${store}`;
   destroyChart(wtc); charts[wtc]=new Chart(document.getElementById(wtc),{type:'bar',data:{labels:techLbls,datasets:[{label:'CP',data:laborRows.filter(r=>r.name!=='HOUSE TECH').map(r=>r.cp),backgroundColor:'#3b82f6',borderRadius:3},{label:'Warranty',data:laborRows.filter(r=>r.name!=='HOUSE TECH').map(r=>r.war),backgroundColor:'#22c55e',borderRadius:3},{label:'Internal',data:laborRows.filter(r=>r.name!=='HOUSE TECH').map(r=>r.int),backgroundColor:'#a78bfa',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#545d78',font:{size:10},boxWidth:7,boxHeight:7}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#545d78',font:{size:9}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#545d78',font:{size:9},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});
+}
+
+// ── SUPABASE ──────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://uyynpxixfklbixlnlvlz.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5eW5weGl4ZmtsYml4bG5sdmx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1OTk4MTYsImV4cCI6MjA5MTE3NTgxNn0.8-4zyHKSupFqg9eSjYK8e7QRL_fM698jeoRZeTYncQk';
+const VIEW_PASSWORD = 'Dealers2025!';
+
+function checkLogin() {
+  const pw = document.getElementById('view-pw').value;
+  if (pw === VIEW_PASSWORD) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('upload-screen').style.display = 'flex';
+    document.getElementById('upload-screen').style.flexDirection = 'column';
+    document.getElementById('upload-screen').style.alignItems = 'center';
+    document.getElementById('upload-screen').style.justifyContent = 'center';
+    document.getElementById('upload-screen').style.minHeight = '100vh';
+    loadFromSupabase();
+  } else {
+    document.getElementById('login-err').textContent = 'Incorrect password';
+  }
+}
+
+function setProgress(pct) {
+  const bar = document.getElementById('loading-progress');
+  if (bar) bar.style.width = pct + '%';
+}
+
+async function sb(path) {
+  const r = await fetch(SUPABASE_URL + path, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  });
+  if (!r.ok) throw new Error('Supabase error: ' + r.status);
+  return r.json();
+}
+
+async function loadFromSupabase() {
+  try {
+    setProgress(20);
+    document.getElementById('loading-sub').textContent = 'Fetching reports...';
+
+    const [reports, nameRows] = await Promise.all([
+      sb('/rest/v1/reports?select=store,report_type,data,uploaded_at&order=uploaded_at.desc'),
+      sb('/rest/v1/tech_names?select=initial,full_name')
+    ]);
+
+    setProgress(60);
+    document.getElementById('loading-sub').textContent = 'Processing data...';
+
+    // Load tech names
+    nameRows.forEach(r => { techNames[r.initial] = r.full_name; });
+
+    // Load reports — take latest per store+type
+    const seen = new Set();
+    reports.forEach(r => {
+      const key = `${r.report_type}-${r.store}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        state[key] = r.data;
+      }
+    });
+
+    setProgress(90);
+    document.getElementById('loading-sub').textContent = 'Building dashboard...';
+
+    if (Object.keys(state).length === 0) {
+      document.getElementById('loading-title').textContent = 'No data yet';
+      document.getElementById('loading-sub').textContent = 'Upload reports via the admin portal to get started.';
+      setProgress(100);
+      return;
+    }
+
+    setProgress(100);
+    setTimeout(() => {
+      document.getElementById('upload-screen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      const dateStr = reports[0] ? new Date(reports[0].uploaded_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+      document.getElementById('report-date').textContent = dateStr ? 'Updated ' + dateStr : '';
+      ['ford','cdjr','body'].forEach(s => {
+        const has = ['writer','tech','wip'].some(t => state[`${t}-${s}`]);
+        if (has) document.getElementById(`tab-${s}`).style.display = '';
+      });
+      renderGroup();
+    }, 300);
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById('loading-title').textContent = 'Could not load data';
+    document.getElementById('loading-sub').textContent = err.message;
+    document.getElementById('loading-err').style.display = 'block';
+    document.getElementById('loading-err').textContent = 'Check your internet connection and try refreshing.';
+  }
 }
 
 // ── MODAL ─────────────────────────────────────────────────────────────────────
