@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dealer Group Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+:root {
+  --bg:#0f1117;--surface:#181c27;--surface2:#1e2333;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --text:#f0f2f8;--text2:#8b92a8;--text3:#545d78;
+  --green:#22c55e;--green-dim:rgba(34,197,94,0.12);
+  --amber:#f59e0b;--amber-dim:rgba(245,158,11,0.12);
+  --red:#ef4444;--red-dim:rgba(239,68,68,0.12);
+  --blue:#3b82f6;--blue-dim:rgba(59,130,246,0.12);
+  --purple:#a78bfa;--purple-dim:rgba(167,139,250,0.12);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
+
+/* UPLOAD */
+#upload-screen{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem;}
+.upload-logo{font-size:11px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:2.5rem;}
+.upload-title{font-size:26px;font-weight:300;margin-bottom:.4rem;text-align:center;}
+.upload-sub{font-size:13px;color:var(--text2);margin-bottom:2.5rem;text-align:center;}
+.store-sections{width:100%;max-width:900px;}
+.store-section{margin-bottom:2rem;}
+.store-section-label{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;padding-left:2px;}
+.drop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.drop-grid-4{grid-template-columns:repeat(4,1fr);}
+@media(max-width:650px){.drop-grid,.drop-grid-4{grid-template-columns:1fr 1fr;}}
+.store-drop{border:1px dashed var(--border2);border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);position:relative;}
+.store-drop:hover,.store-drop.drag-over{border-color:var(--blue);background:var(--blue-dim);}
+.store-drop.loaded{border-color:var(--green);background:var(--green-dim);}
+.store-drop input{display:none;}
+.drop-store-name{font-size:12px;font-weight:600;margin-bottom:3px;}
+.drop-store-hint{font-size:10px;color:var(--text3);margin-bottom:8px;}
+.drop-status{font-size:10px;color:var(--text2);font-family:'DM Mono',monospace;min-height:14px;}
+.launch-btn{background:var(--blue);color:white;border:none;padding:12px 36px;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .2s;margin-top:.5rem;}
+.launch-btn:hover{opacity:.85;}
+.launch-btn:disabled{opacity:.3;cursor:not-allowed;}
+.upload-note{font-size:11px;color:var(--text3);margin-top:1rem;text-align:center;max-width:520px;}
+
+/* TOPBAR */
+#dashboard{display:none;}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:52px;border-bottom:1px solid var(--border);background:var(--surface);position:sticky;top:0;z-index:100;}
+.topbar-left{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.topbar-logo{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);}
+.topbar-div{width:1px;height:16px;background:var(--border2);}
+.store-tabs{display:flex;gap:2px;}
+.store-tab{padding:5px 12px;border-radius:6px;border:none;background:transparent;color:var(--text2);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.store-tab:hover{background:var(--surface2);color:var(--text);}
+.store-tab.active{background:var(--surface2);color:var(--text);}
+.tab-dot{display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+.topbar-right{display:flex;align-items:center;gap:8px;}
+.date-lbl{font-size:10px;color:var(--text3);font-family:'DM Mono',monospace;}
+.update-btn{display:flex;align-items:center;gap:5px;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:11px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;}
+.update-btn:hover{background:var(--surface2);color:var(--text);}
+
+/* CONTENT */
+.content{padding:1.5rem;max-width:1200px;margin:0 auto;}
+
+/* SUB TABS */
+.sub-tabs{display:flex;gap:4px;margin-bottom:1.5rem;border-bottom:1px solid var(--border);padding-bottom:0;}
+.sub-tab{padding:7px 16px;border-radius:6px 6px 0 0;border:none;background:transparent;color:var(--text3);font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.sub-tab:hover{color:var(--text2);}
+.sub-tab.active{color:var(--text);border-bottom-color:var(--blue);}
+
+/* VIEWS */
+.view{display:none;}.view.active{display:block;}
+.sub-view{display:none;}.sub-view.active{display:block;}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:10px;margin-bottom:1.25rem;}
+.kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.kpi-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;font-weight:500;}
+.kpi-val{font-size:24px;font-weight:300;color:var(--text);line-height:1;margin-bottom:5px;font-family:'DM Mono',monospace;}
+.kpi-sub{font-size:10px;color:var(--text3);}
+.up{color:var(--green);}.dn{color:var(--red);}.warn{color:var(--amber);}
+
+/* STORE CARDS */
+.store-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1.25rem;}
+@media(max-width:650px){.store-cards{grid-template-columns:1fr;}}
+.store-ov-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;cursor:pointer;transition:border-color .15s;}
+.store-ov-card:hover{border-color:var(--border2);}
+.store-ov-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.store-pill{font-size:9px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:.06em;text-transform:uppercase;}
+.pill-ford{background:rgba(29,111,196,.2);color:#60a5fa;}
+.pill-cdjr{background:rgba(196,29,29,.2);color:#f87171;}
+.pill-body{background:rgba(22,163,74,.2);color:#4ade80;}
+.status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+.store-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.mini-stat-label{font-size:9px;color:var(--text3);margin-bottom:2px;}
+.mini-stat-val{font-size:15px;font-weight:500;font-family:'DM Mono',monospace;}
+.mini-stat-sub{font-size:9px;color:var(--text3);margin-top:1px;}
+
+/* CHART CARDS */
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:10px;}
+.chart-title{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+@media(max-width:600px){.two-col{grid-template-columns:1fr;}}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+@media(max-width:700px){.three-col{grid-template-columns:1fr;}}
+
+/* ALERTS */
+.alert{border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;border:1px solid;}
+.alert-title{font-weight:600;margin-bottom:2px;}
+.alert-green{background:var(--green-dim);border-color:rgba(34,197,94,.25);color:#86efac;}.alert-green .alert-title{color:var(--green);}
+.alert-amber{background:var(--amber-dim);border-color:rgba(245,158,11,.25);color:#fcd34d;}.alert-amber .alert-title{color:var(--amber);}
+.alert-red{background:var(--red-dim);border-color:rgba(239,68,68,.25);color:#fca5a5;}.alert-red .alert-title{color:var(--red);}
+.alert-blue{background:var(--blue-dim);border-color:rgba(59,130,246,.25);color:#93c5fd;}.alert-blue .alert-title{color:var(--blue);}
+.alert-purple{background:var(--purple-dim);border-color:rgba(167,139,250,.25);color:#c4b5fd;}.alert-purple .alert-title{color:var(--purple);}
+
+/* SPLIT BOXES */
+.split-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px;}
+.split-grid-2{grid-template-columns:1fr 1fr;}
+@media(max-width:600px){.split-grid,.split-grid-2{grid-template-columns:1fr;}}
+.split-box{border-radius:8px;padding:12px 14px;border:1px solid;}
+.split-fs{background:var(--surface2);border-color:var(--border2);}
+.split-lube{background:var(--amber-dim);border-color:rgba(245,158,11,.2);}
+.split-mobile{background:var(--purple-dim);border-color:rgba(167,139,250,.2);}
+.split-title{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
+.split-fs .split-title{color:var(--text3);}
+.split-lube .split-title{color:var(--amber);}
+.split-mobile .split-title{color:var(--purple);}
+.split-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;font-size:11px;}
+.split-key{color:var(--text3);}
+.split-val{font-weight:600;font-family:'DM Mono',monospace;font-size:12px;}
+
+/* TABLES */
+.data-table{width:100%;border-collapse:collapse;}
+.data-table th{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;text-align:right;padding:0 0 8px;border-bottom:1px solid var(--border);}
+.data-table th:first-child{text-align:left;}
+.data-table td{padding:9px 0;border-bottom:1px solid var(--border);text-align:right;font-family:'DM Mono',monospace;font-size:12px;color:var(--text2);}
+.data-table td:first-child{text-align:left;font-family:'DM Sans',sans-serif;color:var(--text);font-weight:500;font-size:13px;}
+.data-table tr:last-child td{border-bottom:none;}
+.tag{display:inline-block;font-size:8px;font-weight:600;padding:1px 5px;border-radius:3px;margin-left:5px;letter-spacing:.04em;text-transform:uppercase;vertical-align:middle;font-family:'DM Sans',sans-serif;}
+.tag-lube{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,158,11,.3);}
+.tag-mobile{background:var(--purple-dim);color:var(--purple);border:1px solid rgba(167,139,250,.3);}
+
+/* PIE */
+.pie-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.pie-cw{position:relative;width:150px;height:150px;flex-shrink:0;}
+.pie-leg{flex:1;min-width:150px;}
+.pie-leg-row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;}
+.pie-leg-row:last-child{border-bottom:none;}
+.pie-leg-left{display:flex;align-items:center;gap:7px;color:var(--text2);}
+.pie-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0;}
+.pie-val{font-family:'DM Mono',monospace;font-weight:500;color:var(--text);}
+.pie-pct{font-family:'DM Mono',monospace;color:var(--text3);font-size:10px;min-width:28px;text-align:right;}
+
+/* WIP */
+.wip-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:10px;}
+.wip-cat{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.wip-cat-label{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px;font-weight:500;}
+.wip-cat-retail{font-size:20px;font-weight:300;font-family:'DM Mono',monospace;color:var(--text);margin-bottom:3px;}
+.wip-cat-cost{font-size:10px;color:var(--text3);}
+.wip-tech-row{display:grid;grid-template-columns:1.2fr repeat(5,1fr);gap:4px;padding:8px 0;border-bottom:1px solid var(--border);align-items:center;font-size:11px;}
+.wip-tech-row:last-child{border-bottom:none;}
+.wip-tech-name{font-weight:500;color:var(--text);font-size:12px;}
+.wip-cell{text-align:right;font-family:'DM Mono',monospace;color:var(--text2);}
+.wip-cell-head{text-align:right;font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;}
+.wip-bar-wrap{height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:3px;}
+.wip-bar{height:100%;border-radius:2px;}
+
+/* NAME EDITOR */
+.name-editor-hint{font-size:11px;color:var(--text3);margin-bottom:12px;}
+.name-edit-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-bottom:16px;}
+.name-edit-row{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 10px;}
+.name-edit-init{font-size:12px;font-weight:600;color:var(--text2);font-family:'DM Mono',monospace;min-width:40px;}
+.name-edit-input{background:transparent;border:none;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;flex:1;outline:none;}
+.name-edit-input::placeholder{color:var(--text3);}
+.save-names-btn{background:var(--blue);color:white;border:none;padding:8px 20px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.save-names-btn:hover{opacity:.85;}
+
+/* BACK / MISC */
+.back-btn{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text3);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;margin-bottom:16px;padding:0;transition:color .15s;}
+.back-btn:hover{color:var(--text2);}
+.legend-row{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text3);}
+.legend-dot{width:7px;height:7px;border-radius:2px;}
+.section-divider{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin:1.2rem 0 .6rem;padding-bottom:6px;border-bottom:1px solid var(--border);}
+
+/* MODAL */
+#update-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;}
+#update-modal.open{display:flex;}
+.modal-box{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:1.75rem;width:100%;max-width:620px;margin:1rem;max-height:90vh;overflow-y:auto;}
+.modal-title{font-size:15px;font-weight:500;margin-bottom:3px;}
+.modal-sub{font-size:12px;color:var(--text3);margin-bottom:1.25rem;}
+.modal-section{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;margin:1rem 0 .5rem;}
+.modal-drop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:.75rem;}
+.modal-drop-grid-4{grid-template-columns:repeat(4,1fr);}
+.modal-close{background:none;border:1px solid var(--border2);color:var(--text2);padding:7px 18px;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;margin-right:6px;transition:all .15s;}
+.modal-close:hover{background:var(--surface2);}
+.modal-apply{background:var(--blue);border:none;color:white;padding:7px 18px;border-radius:6px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;transition:opacity .15s;}
+.modal-apply:hover{opacity:.85;}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;">
+  <div style="background:#181c27;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:2.5rem;width:100%;max-width:360px;">
+    <div style="font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:#545d78;margin-bottom:1.5rem;">Dealer Group Dashboard</div>
+    <div style="font-size:20px;font-weight:300;margin-bottom:.3rem;">Welcome</div>
+    <div style="font-size:12px;color:#545d78;margin-bottom:1.5rem;">Enter your password to view the dashboard</div>
+    <input id="view-pw" type="password" placeholder="Password" onkeydown="if(event.key==='Enter')checkLogin()"
+      style="width:100%;background:#1e2333;border:1px solid rgba(255,255,255,0.12);border-radius:6px;padding:10px 14px;color:#f0f2f8;font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:10px;outline:none;">
+    <button onclick="checkLogin()"
+      style="width:100%;background:#3b82f6;color:white;border:none;padding:11px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;">Sign in</button>
+    <div id="login-err" style="font-size:12px;color:#ef4444;margin-top:8px;min-height:16px;"></div>
+  </div>
+</div>
+
+<!-- UPLOAD SCREEN (replaced by Supabase — kept for structure) -->
+<div id="upload-screen" style="display:none;">
+  <div class="upload-logo">Dealer Group · Performance Dashboard</div>
+  <div class="upload-title" id="loading-title">Loading dashboard...</div>
+  <div class="upload-sub" id="loading-sub">Fetching latest data</div>
+
+  <div class="store-sections">
+    <div class="store-section">
+      <div class="store-section-label">Service Writer PLA</div>
+      <div class="drop-grid">
+        <div class="store-drop" id="drop-writer-ford" ondrop="handleDrop(event,'writer-ford')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('file-writer-ford').click()">
+          <input type="file" id="file-writer-ford" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'writer-ford')">
+          <div class="drop-store-name" style="color:#60a5fa;">Ford Store</div>
+          <div class="drop-store-hint">Writer PLA export</div>
+          <div class="drop-status" id="status-writer-ford">Drop or click</div>
+        </div>
+        <div class="store-drop" id="drop-writer-cdjr" ondrop="handleDrop(event,'writer-cdjr')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('file-writer-cdjr').click()">
+          <input type="file" id="file-writer-cdjr" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'writer-cdjr')">
+          <div class="drop-store-name" style="color:#f87171;">CDJR Store</div>
+          <div class="drop-store-hint">Writer PLA export</div>
+          <div class="drop-status" id="status-writer-cdjr">Drop or click</div>
+        </div>
+        <div class="store-drop" id="drop-writer-body" ondrop="handleDrop(event,'writer-body')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('file-writer-body').click()">
+          <input type="file" id="file-writer-body" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'writer-body')">
+          <div class="drop-store-name" style="color:#4ade80;">Body Shop</div>
+          <div class="drop-store-hint">Writer PLA export</div>
+          <div class="drop-status" id="status-writer-body">Drop or click</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="store-section">
+      <div class="store-section-label">Technician PLA</div>
+      <div class="drop-grid">
+        <div class="store-drop" id="drop-tech-ford" ondrop="handleDrop(event,'tech-ford')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('file-tech-ford').click()">
+          <input type="file" id="file-tech-ford" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'tech-ford')">
+          <div class="drop-store-name" style="color:#60a5fa;">Ford Store</div>
+          <div class="drop-store-hint">Technician PLA export</div>
+          <div class="drop-status" id="status-tech-ford">Drop or click</div>
+        </div>
+        <div class="store-drop" id="drop-tech-cdjr" ondrop="handleDrop(event,'tech-cdjr')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('file-tech-cdjr').click()">
+          <input type="file" id="file-tech-cdjr" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'tech-cdjr')">
+          <div class="drop-store-name" style="color:#f87171;">CDJR Store</div>
+          <div class="drop-store-hint">Technician PLA export</div>
+          <div class="drop-status" id="status-tech-cdjr">Drop or click</div>
+        </div>
+        <div class="store-drop" id="drop-tech-body" ondrop="handleDrop(event,'tech-body')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('file-tech-body').click()">
+          <input type="file" id="file-tech-body" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'tech-body')">
+          <div class="drop-store-name" style="color:#4ade80;">Body Shop</div>
+          <div class="drop-store-hint">Technician PLA export</div>
+          <div class="drop-status" id="status-tech-body">Drop or click</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="store-section">
+      <div class="store-section-label">Work in Process</div>
+      <div class="drop-grid">
+        <div class="store-drop" id="drop-wip-ford" ondrop="handleDrop(event,'wip-ford')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('file-wip-ford').click()">
+          <input type="file" id="file-wip-ford" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'wip-ford')">
+          <div class="drop-store-name" style="color:#60a5fa;">Ford Store</div>
+          <div class="drop-store-hint">WIP export</div>
+          <div class="drop-status" id="status-wip-ford">Drop or click</div>
+        </div>
+        <div class="store-drop" id="drop-wip-cdjr" ondrop="handleDrop(event,'wip-cdjr')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('file-wip-cdjr').click()">
+          <input type="file" id="file-wip-cdjr" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'wip-cdjr')">
+          <div class="drop-store-name" style="color:#f87171;">CDJR Store</div>
+          <div class="drop-store-hint">WIP export</div>
+          <div class="drop-status" id="status-wip-cdjr">Drop or click</div>
+        </div>
+        <div class="store-drop" id="drop-wip-body" ondrop="handleDrop(event,'wip-body')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('file-wip-body').click()">
+          <input type="file" id="file-wip-body" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'wip-body')">
+          <div class="drop-store-name" style="color:#4ade80;">Body Shop</div>
+          <div class="drop-store-hint">WIP export</div>
+          <div class="drop-status" id="status-wip-body">Drop or click</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading-bar" style="width:240px;height:3px;background:#1e2333;border-radius:2px;margin-top:1rem;overflow:hidden;">
+    <div id="loading-progress" style="height:100%;background:#3b82f6;border-radius:2px;width:0%;transition:width .4s;"></div>
+  </div>
+  <div id="loading-err" style="font-size:12px;color:#ef4444;margin-top:1rem;display:none;"></div>
+</div>
+
+<!-- DASHBOARD -->
+<div id="dashboard">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">Dealer Group</div>
+      <div class="topbar-div"></div>
+      <div class="store-tabs">
+        <button class="store-tab active" onclick="switchStore('group')">Group</button>
+        <button class="store-tab" id="tab-ford" onclick="switchStore('ford')" style="display:none"><span class="tab-dot" style="background:#3b82f6;"></span>Ford</button>
+        <button class="store-tab" id="tab-cdjr" onclick="switchStore('cdjr')" style="display:none"><span class="tab-dot" style="background:#ef4444;"></span>CDJR</button>
+        <button class="store-tab" id="tab-body" onclick="switchStore('body')" style="display:none"><span class="tab-dot" style="background:#22c55e;"></span>Body</button>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="date-lbl" id="report-date"></div>
+      <button class="update-btn" onclick="openModal()">↑ Update data</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- GROUP -->
+    <div class="view active" id="view-group">
+      <div class="kpi-grid" id="g-kpis"></div>
+      <div id="g-alerts"></div>
+      <div class="store-cards" id="g-store-cards"></div>
+      <div class="two-col">
+        <div class="chart-card">
+          <div class="chart-title">Hrs/RO by category</div>
+          <div class="legend-row">
+            <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>At/above goal</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;"></div>Within 30%</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ef4444;"></div>Below 70%</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#a78bfa;"></div>Not benchmarked</div>
+          </div>
+          <div style="position:relative;height:200px;"><canvas id="g-hro-chart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Gross by store &amp; type</div>
+          <div style="position:relative;height:200px;"><canvas id="g-retail-chart"></canvas></div>
+        </div>
+      </div>
+      <div class="two-col">
+        <div class="chart-card">
+          <div class="chart-title">ELR — full service writers</div>
+          <div style="position:relative;height:160px;"><canvas id="g-elr-chart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">WIP retail — labor by store</div>
+          <div style="position:relative;height:160px;"><canvas id="g-wip-chart"></canvas></div>
+        </div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Total sales — labor + parts by store</div>
+        <div id="g-sales-note" style="font-size:11px;color:var(--text3);margin-bottom:10px;">Upload the sales report for each store to see total gross including parts.</div>
+        <div style="position:relative;height:180px;"><canvas id="g-sales-chart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- FORD -->
+    <div class="view" id="view-ford">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="switchSub('ford','writers')">Writers</button>
+        <button class="sub-tab" onclick="switchSub('ford','techs')">Technicians</button>
+        <button class="sub-tab" onclick="switchSub('ford','wip')">Work in Process</button>
+        <button class="sub-tab" onclick="switchSub('ford','sales')">Sales</button>
+      </div>
+      <div class="sub-view active" id="sv-ford-writers"><div id="c-ford-writers"></div></div>
+      <div class="sub-view" id="sv-ford-techs"><div id="c-ford-techs"></div></div>
+      <div class="sub-view" id="sv-ford-wip"><div id="c-ford-wip"></div></div>
+      <div class="sub-view" id="sv-ford-sales"><div id="c-ford-sales"></div></div>
+    </div>
+
+    <!-- CDJR -->
+    <div class="view" id="view-cdjr">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="switchSub('cdjr','writers')">Writers</button>
+        <button class="sub-tab" onclick="switchSub('cdjr','techs')">Technicians</button>
+        <button class="sub-tab" onclick="switchSub('cdjr','wip')">Work in Process</button>
+        <button class="sub-tab" onclick="switchSub('cdjr','sales')">Sales</button>
+      </div>
+      <div class="sub-view active" id="sv-cdjr-writers"><div id="c-cdjr-writers"></div></div>
+      <div class="sub-view" id="sv-cdjr-techs"><div id="c-cdjr-techs"></div></div>
+      <div class="sub-view" id="sv-cdjr-wip"><div id="c-cdjr-wip"></div></div>
+      <div class="sub-view" id="sv-cdjr-sales"><div id="c-cdjr-sales"></div></div>
+    </div>
+
+    <!-- BODY -->
+    <div class="view" id="view-body">
+      <div class="sub-tabs">
+        <button class="sub-tab active" onclick="switchSub('body','writers')">Writers</button>
+        <button class="sub-tab" onclick="switchSub('body','techs')">Technicians</button>
+        <button class="sub-tab" onclick="switchSub('body','wip')">Work in Process</button>
+        <button class="sub-tab" onclick="switchSub('body','sales')">Sales</button>
+      </div>
+      <div class="sub-view active" id="sv-body-writers"><div id="c-body-writers"></div></div>
+      <div class="sub-view" id="sv-body-techs"><div id="c-body-techs"></div></div>
+      <div class="sub-view" id="sv-body-wip"><div id="c-body-wip"></div></div>
+      <div class="sub-view" id="sv-body-sales"><div id="c-body-sales"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- UPDATE MODAL -->
+<div id="update-modal">
+  <div class="modal-box">
+    <div class="modal-title">Update data</div>
+    <div class="modal-sub">Drop new exports. Only upload what changed — existing data stays until replaced.</div>
+    <div class="modal-section">Writer PLA</div>
+    <div class="modal-drop-grid">
+      <div class="store-drop" id="mdrop-writer-ford" ondrop="handleDrop(event,'writer-ford',true)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('mf-writer-ford').click()">
+        <input type="file" id="mf-writer-ford" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'writer-ford',true)">
+        <div class="drop-store-name" style="color:#60a5fa;font-size:11px;">Ford</div>
+        <div class="drop-status" id="ms-writer-ford" style="font-size:9px;">current</div>
+      </div>
+      <div class="store-drop" id="mdrop-writer-cdjr" ondrop="handleDrop(event,'writer-cdjr',true)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('mf-writer-cdjr').click()">
+        <input type="file" id="mf-writer-cdjr" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'writer-cdjr',true)">
+        <div class="drop-store-name" style="color:#f87171;font-size:11px;">CDJR</div>
+        <div class="drop-status" id="ms-writer-cdjr" style="font-size:9px;">current</div>
+      </div>
+      <div class="store-drop" id="mdrop-writer-body" ondrop="handleDrop(event,'writer-body',true)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('mf-writer-body').click()">
+        <input type="file" id="mf-writer-body" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'writer-body',true)">
+        <div class="drop-store-name" style="color:#4ade80;font-size:11px;">Body</div>
+        <div class="drop-status" id="ms-writer-body" style="font-size:9px;">current</div>
+      </div>
+    </div>
+    <div class="modal-section">Technician PLA</div>
+    <div class="modal-drop-grid">
+      <div class="store-drop" id="mdrop-tech-ford" ondrop="handleDrop(event,'tech-ford',true)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('mf-tech-ford').click()">
+        <input type="file" id="mf-tech-ford" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'tech-ford',true)">
+        <div class="drop-store-name" style="color:#60a5fa;font-size:11px;">Ford</div>
+        <div class="drop-status" id="ms-tech-ford" style="font-size:9px;">current</div>
+      </div>
+      <div class="store-drop" id="mdrop-tech-cdjr" ondrop="handleDrop(event,'tech-cdjr',true)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('mf-tech-cdjr').click()">
+        <input type="file" id="mf-tech-cdjr" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'tech-cdjr',true)">
+        <div class="drop-store-name" style="color:#f87171;font-size:11px;">CDJR</div>
+        <div class="drop-status" id="ms-tech-cdjr" style="font-size:9px;">current</div>
+      </div>
+      <div class="store-drop" id="mdrop-tech-body" ondrop="handleDrop(event,'tech-body',true)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('mf-tech-body').click()">
+        <input type="file" id="mf-tech-body" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'tech-body',true)">
+        <div class="drop-store-name" style="color:#4ade80;font-size:11px;">Body</div>
+        <div class="drop-status" id="ms-tech-body" style="font-size:9px;">current</div>
+      </div>
+    </div>
+    <div class="modal-section">Work in Process</div>
+    <div class="modal-drop-grid">
+      <div class="store-drop" id="mdrop-wip-ford" ondrop="handleDrop(event,'wip-ford',true)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('mf-wip-ford').click()">
+        <input type="file" id="mf-wip-ford" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'wip-ford',true)">
+        <div class="drop-store-name" style="color:#60a5fa;font-size:11px;">Ford</div>
+        <div class="drop-status" id="ms-wip-ford" style="font-size:9px;">current</div>
+      </div>
+      <div class="store-drop" id="mdrop-wip-cdjr" ondrop="handleDrop(event,'wip-cdjr',true)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('mf-wip-cdjr').click()">
+        <input type="file" id="mf-wip-cdjr" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'wip-cdjr',true)">
+        <div class="drop-store-name" style="color:#f87171;font-size:11px;">CDJR</div>
+        <div class="drop-status" id="ms-wip-cdjr" style="font-size:9px;">current</div>
+      </div>
+      <div class="store-drop" id="mdrop-wip-body" ondrop="handleDrop(event,'wip-body',true)" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('mf-wip-body').click()">
+        <input type="file" id="mf-wip-body" accept=".csv,.xls,.xlsx" onchange="handleFileInput(this,'wip-body',true)">
+        <div class="drop-store-name" style="color:#4ade80;font-size:11px;">Body</div>
+        <div class="drop-status" id="ms-wip-body" style="font-size:9px;">current</div>
+      </div>
+    </div>
+    <div style="margin-top:1.25rem;">
+      <button class="modal-close" onclick="closeModal()">Cancel</button>
+      <button class="modal-apply" onclick="applyUpdate()">Apply &amp; refresh</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const WRITER_TYPES = { 'CHRIS SCROGHAM':'lube','CODY ZILLES':'lube','ERIC SCRUTON':'mobile','JOE DANIELS':'mobile' };
+const TECH_SKIP = ['HOUSE TECH','ALL TECHNICIANS'];
+const GOALS = { fs:3.0, lube:1.0, mobile:null };
+const ELR_GOAL = 148;
+const PM_LABELS = { C:'Customer Pay', W:'Warranty', I:'Internal', S:'Sublet' };
+const PIE_COLORS = { C:'#3b82f6', W:'#22c55e', I:'#a78bfa', S:'#f59e0b' };
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+const state = {};   // keyed by 'writer-ford', 'tech-ford', 'wip-ford', etc.
+const pending = {};
+let charts = {};
+let techNames = JSON.parse(localStorage.getItem('techNames') || '{}');
+const builtViews = new Set();
+
+// ── FILE READING ──────────────────────────────────────────────────────────────
+function dragOver(e) { e.preventDefault(); e.currentTarget.classList.add('drag-over'); }
+function dragLeave(e) { e.currentTarget.classList.remove('drag-over'); }
+function handleDrop(e, key, modal=false) {
+  e.preventDefault(); e.currentTarget.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0]; if(f) processFile(f, key, modal);
+}
+function handleFileInput(input, key, modal=false) { if(input.files[0]) processFile(input.files[0], key, modal); }
+
+function processFile(file, key, modal) {
+  const statusId = modal ? `ms-${key}` : `status-${key}`;
+  const dropId   = modal ? `mdrop-${key}` : `drop-${key}`;
+  const ext = file.name.split('.').pop().toLowerCase();
+  const isWip = key.startsWith('wip');
+  const isWriter = key.startsWith('writer');
+
+  const onRawLines = (lines) => {
+    try {
+      lines = lines.map(l=>l.trim()).filter(l=>l);
+      let parsed;
+      if (isWip) {
+        parsed = parseWIPLines(lines);
+      } else {
+        // Tech PLA has two header rows: row0=ServiceWriter..., row1=Technician,...
+        // We need to find the row containing exactly the name column we want
+        const nameCol = isWriter ? 'ServiceWriter' : 'Technician';
+        let hi = 0;
+        for (let i=0; i<Math.min(lines.length,10); i++) {
+          const cells = lines[i].split(',').map(c=>c.trim().replace(/^"|"$/g,''));
+          if (cells[0] === nameCol || cells[1] === nameCol) { hi=i; break; }
+        }
+        const headers = lines[hi].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+        const rows = lines.slice(hi+1).map(line=>{
+          const vals=line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+          const obj={}; headers.forEach((h,i)=>{ obj[h]=vals[i]||''; }); return obj;
+        });
+        parsed = parsePLA(rows, isWriter);
+      }
+      if (!parsed) { document.getElementById(statusId).textContent = 'Could not read — check format'; return; }
+      if (modal) pending[key] = parsed;
+      else { state[key] = parsed; checkLaunch(); }
+      document.getElementById(dropId).classList.add('loaded');
+      document.getElementById(statusId).textContent = '\u2713 ' + file.name;
+    } catch(err) { document.getElementById(statusId).textContent = 'Parse error: ' + err.message; console.error(err); }
+  };
+
+  const reader = new FileReader();
+  if (ext === 'csv') {
+    reader.onload = e => onRawLines(e.target.result.split('\n'));
+    reader.readAsText(file);
+  } else {
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const aoa = XLSX.utils.sheet_to_json(ws, { header:1, defval:'' });
+        const lines = aoa.map(row => row.map(c=>String(c===null||c===undefined?'':c).trim()).join(','));
+        onRawLines(lines);
+      } catch(err) { document.getElementById(statusId).textContent = 'Excel error: '+err.message; console.error(err); }
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+// ── PARSERS ───────────────────────────────────────────────────────────────────
+function parsePLA(rows, isWriter) {
+  const nameCol = isWriter ? 'ServiceWriter' : 'Technician';
+
+  // Normalize column names — tech PLA uses "# RO", "Hrs/RO", "Gross %" etc.
+  // Map whatever headers exist to standard keys
+  const normalizeRow = (r) => {
+    const n = {};
+    Object.keys(r).forEach(k => {
+      const kc = k.trim().replace(/\s+/g,' ');
+      const v = String(r[k]||'').trim();
+      // Map to standard names
+      if (kc === nameCol || kc === 'ServiceWriter' || kc === 'Technician') n._rawName = v;
+      if (kc === 'PM') n.PM = v;
+      if (kc === 'ROCount' || kc === '# RO') n.ROCount = v;
+      if (kc === 'Hours') n.Hours = v;
+      if (kc === 'HRS/RO' || kc === 'Hrs/RO') n.HrsRO = v;
+      if (kc === 'ELR') n.ELR = v;
+      if (kc === 'Retail') n.Retail = v;
+      if (kc === 'PerRO' || kc === 'Per RO') n.PerRO = v;
+      if (kc === 'Cost') n.Cost = v;
+      if (kc === 'Gross') n.Gross = v;
+      if (kc === 'Gross%' || kc === 'Gross %') n.GrossPct = v;
+    });
+    return n;
+  };
+
+  rows = rows.map(r => {
+    const n = normalizeRow(r);
+    return { ...r, ...n };
+  });
+
+  // Forward-fill name
+  let last = '';
+  rows = rows.map(r => {
+    const v = (r._rawName||'').trim();
+    if (v) last = v;
+    return { ...r, _name: last };
+  });
+
+  const pf = s => parseFloat(String(s||'').replace(/[$,]/g,'').trim()) || 0;
+  const skip = n => n.toLowerCase().includes('total') || n.toLowerCase().includes('all service') ||
+                    n.toLowerCase().includes('all tech') || n.toLowerCase().includes('grand');
+
+  const grandRow = rows.find(r => r._name.toLowerCase().includes('grand total'));
+  const grand = grandRow ? {
+    ro:pf(grandRow.ROCount), hours:pf(grandRow.Hours), hro:pf(grandRow.HrsRO),
+    elr:pf(grandRow.ELR), retail:pf(grandRow.Retail), gross:pf(grandRow.Gross), grossPct:pf(grandRow.GrossPct)
+  } : null;
+
+  const allPmRows = rows.filter(r=>r._name.toLowerCase().includes('all service')||r._name.toLowerCase().includes('all tech'));
+  const pie = Object.entries(PM_LABELS).map(([pm, label])=>{
+    const r = allPmRows.find(x=>x.PM===pm);
+    return r ? { pm, label, gross:pf(r.Gross), ro:pf(r.ROCount), color:PIE_COLORS[pm] } : null;
+  }).filter(p=>p&&p.gross>0);
+
+  const names = [...new Set(rows.filter(r=>r._name&&!skip(r._name)).map(r=>r._name))];
+  const people = names.filter(n=>!TECH_SKIP.includes(n.toUpperCase())).map(name=>{
+    const wrows = rows.filter(r=>r._name===name&&r.PM&&!skip(r._name));
+    const gross = wrows.reduce((s,r)=>s+pf(r.Gross),0);
+    const ro    = wrows.reduce((s,r)=>s+pf(r.ROCount),0);
+    const hrs   = wrows.reduce((s,r)=>s+pf(r.Hours),0);
+    const retail= wrows.reduce((s,r)=>s+pf(r.Retail),0);
+    const hro   = ro>0 ? +(hrs/ro).toFixed(2) : 0;
+    const elr   = hrs>0 ? +(retail/hrs).toFixed(2) : 0;
+    const type  = isWriter ? (WRITER_TYPES[name]||'fs') : 'fs';
+    // PM breakdown for this person
+    const pmBreakdown = {};
+    wrows.forEach(r=>{ if(r.PM) pmBreakdown[r.PM]={gross:pf(r.Gross),ro:pf(r.ROCount),hrs:pf(r.Hours),retail:pf(r.Retail)}; });
+    return { name, gross, ro, hrs, hro, elr, type, pmBreakdown };
+  }).filter(p=>p.ro>0||p.gross>0);
+
+  return { grand, pie, people };
+}
+
+function parseWIPLines(lines) {
+  // WIP has no real headers — parse by section markers and positional columns
+  // Columns (0-indexed after split): 0=id/code, 1=name, 2=cost, 3=retail, 4=CP, 5=warranty, 6=internal, 7=contract
+  const laborRows = [], partsRows = [], otherRows = [];
+  let section = '';
+  let finalTotal = { retail:0, cost:0, cp:0, war:0, int:0, con:0 };
+
+  const pf = s => parseFloat(String(s||'').replace(/[$,]/g,'').trim()) || 0;
+
+  lines.forEach(line => {
+    if (!line.trim() || line.startsWith('=')) return;
+    const cells = line.split(',').map(c=>c.trim().replace(/^"|"$/g,''));
+    const c0 = cells[0]||'', c1 = cells[1]||'';
+
+    // Section markers
+    if (c0 === 'Parts:') { section='parts'; return; }
+    if (c0 === 'Labor:') { section='labor'; return; }
+    if (c0 === 'Other:') { section='other'; return; }
+
+    // Skip headers/separators/blanks
+    if (c0.startsWith('===') || c1.startsWith('===')) return;
+    if (c0 === 'Cust' || c0 === 'Cost' || c1 === 'Cost') return;
+    if (!c1 || c1 === '') return;
+
+    // Totals
+    if (c0.startsWith('Total') || c0.startsWith('Final')) {
+      if (c0.startsWith('Final')) {
+        finalTotal = { cost:pf(cells[2]), retail:pf(cells[3]), cp:pf(cells[4]), war:pf(cells[5]), int:pf(cells[6]), con:pf(cells[7]) };
+      }
+      return;
+    }
+
+    if (!section) return;
+
+    const row = { id:c0, name:c1, cost:pf(cells[2]), retail:pf(cells[3]), cp:pf(cells[4]), war:pf(cells[5]), int:pf(cells[6]), con:pf(cells[7]) };
+
+    if (section === 'labor') laborRows.push(row);
+    else if (section === 'parts') partsRows.push(row);
+    else if (section === 'other') otherRows.push({ name:c1, cost:pf(cells[2]), retail:pf(cells[3]) });
+  });
+
+  const laborTotal = laborRows.reduce((t,r)=>{ t.cost+=r.cost;t.retail+=r.retail;t.cp+=r.cp;t.war+=r.war;t.int+=r.int;t.con+=r.con;return t; },{cost:0,retail:0,cp:0,war:0,int:0,con:0});
+  const partsTotal = partsRows.reduce((t,r)=>{ t.cost+=r.cost;t.retail+=r.retail;return t;},{cost:0,retail:0});
+  const otherTotal = otherRows.reduce((t,r)=>{ t.cost+=r.cost;t.retail+=r.retail;return t;},{cost:0,retail:0});
+
+  // If finalTotal didn't parse (some exports format differently), compute it
+  if (!finalTotal.retail) {
+    finalTotal.retail = laborTotal.retail + partsTotal.retail + otherTotal.retail;
+    finalTotal.cost = laborTotal.cost + partsTotal.cost + otherTotal.cost;
+    finalTotal.cp = laborTotal.cp; finalTotal.war = laborTotal.war;
+    finalTotal.int = laborTotal.int; finalTotal.con = laborTotal.con;
+  }
+
+  return { laborRows, partsRows, otherRows, laborTotal, partsTotal, otherTotal, finalTotal };
+}
+
+// ── LAUNCH ────────────────────────────────────────────────────────────────────
+function checkLaunch() {
+  document.getElementById('launch-btn').disabled = Object.keys(state).length === 0;
+}
+
+function launchDashboard() {
+  document.getElementById('upload-screen').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+  document.getElementById('report-date').textContent = new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  ['ford','cdjr','body'].forEach(s => {
+    const has = ['writer','tech','wip'].some(t=>state[`${t}-${s}`]);
+    if (has) document.getElementById(`tab-${s}`).style.display='';
+  });
+  renderGroup();
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────────
+function switchStore(store) {
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+store).classList.add('active');
+  document.querySelectorAll('.store-tab').forEach(t=>t.classList.remove('active'));
+  const tab = store==='group' ? document.querySelector('.store-tab') : document.getElementById(`tab-${store}`);
+  if (tab) tab.classList.add('active');
+  if (store!=='group') renderStore(store);
+}
+
+function switchSub(store, sub) {
+  document.querySelectorAll(`#view-${store} .sub-view`).forEach(v=>v.classList.remove('active'));
+  document.getElementById(`sv-${store}-${sub}`).classList.add('active');
+  document.querySelectorAll(`#view-${store} .sub-tab`).forEach(t=>t.classList.remove('active'));
+  event.target.classList.add('active');
+  const key = `${store}-${sub}`;
+  if (!builtViews.has(key)) { buildSubView(store, sub); builtViews.add(key); }
+}
+
+// ── FORMAT ────────────────────────────────────────────────────────────────────
+function fmt$(n){return '$'+Math.round(n).toLocaleString('en-US');}
+function fmtN(n,d=2){return parseFloat(n).toFixed(d);}
+function barColor(hro,type){
+  if(type==='mobile') return '#a78bfa';
+  const g=GOALS[type],r=hro/g;
+  return r>=1?'#22c55e':r>=0.7?'#f59e0b':'#ef4444';
+}
+function textColor(hro,type){
+  if(type==='mobile') return 'var(--purple)';
+  const g=GOALS[type],r=hro/g;
+  return r>=1?'var(--green)':r>=0.7?'var(--amber)':'var(--red)';
+}
+function techDisplayName(init) { return techNames[init] || init; }
+
+function destroyChart(id) { if(charts[id]){try{charts[id].destroy();}catch(e){} delete charts[id];} }
+
+// ── GROUP VIEW ────────────────────────────────────────────────────────────────
+function renderGroup() {
+  const stores = ['ford','cdjr','body'].filter(s=>['writer','tech','wip'].some(t=>state[`${t}-${s}`]));
+
+  // KPIs
+  let totalRo=0, totalRetail=0, totalGross=0, totalWipRetail=0;
+  stores.forEach(s=>{
+    const w=state[`writer-${s}`]; const wip=state[`wip-${s}`];
+    if(w&&w.grand){totalRo+=w.grand.ro||0;totalRetail+=w.grand.retail||0;totalGross+=w.grand.gross||0;}
+    if(wip) totalWipRetail+=wip.finalTotal.retail||0;
+  });
+
+  const fordW=state['writer-ford'], cdjrW=state['writer-cdjr'];
+  const fordFs=fordW?fordW.people.filter(p=>p.type==='fs'):[];
+  const cdjrFs=cdjrW?cdjrW.people.filter(p=>p.type==='fs'):[];
+  const fordFsHro=fordFs.length?fordFs.reduce((a,w)=>a+w.hrs,0)/fordFs.reduce((a,w)=>a+w.ro,0):null;
+  const cdjrFsHro=cdjrFs.length?cdjrFs.reduce((a,w)=>a+w.hrs,0)/cdjrFs.reduce((a,w)=>a+w.ro,0):null;
+  const fordFsElr=fordFs.length?fordFs.reduce((a,w)=>a+w.elr*w.hrs,0)/fordFs.reduce((a,w)=>a+w.hrs,0):null;
+  const cdjrFsElr=cdjrFs.length?cdjrFs.reduce((a,w)=>a+w.elr*w.hrs,0)/cdjrFs.reduce((a,w)=>a+w.hrs,0):null;
+
+  document.getElementById('g-kpis').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Total ROs</div><div class="kpi-val">${totalRo}</div><div class="kpi-sub">${stores.map(s=>s.toUpperCase()).join(' · ')}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total Retail</div><div class="kpi-val">${fmt$(totalRetail)}</div><div class="kpi-sub">Labor gross: ${fmt$(totalGross)}</div></div>
+    ${groupTotalSales>0?`<div class="kpi-card"><div class="kpi-label">Total sales (L+P)</div><div class="kpi-val">${fmt$(groupTotalSales)}</div><div class="kpi-sub">Total gross: ${fmt$(groupTotalGross)}</div></div>`:''}
+    ${fordFsHro!==null?`<div class="kpi-card"><div class="kpi-label">Ford FS Hrs/RO</div><div class="kpi-val" style="color:${fordFsHro>=3?'var(--green)':'var(--amber)'};">${fmtN(fordFsHro)}</div><div class="kpi-sub">Goal: 3.0</div></div>`:''}
+    ${cdjrFsHro!==null?`<div class="kpi-card"><div class="kpi-label">CDJR FS Hrs/RO</div><div class="kpi-val" style="color:${cdjrFsHro>=3?'var(--green)':'var(--amber)'};">${fmtN(cdjrFsHro)}</div><div class="kpi-sub">Goal: 3.0</div></div>`:''}
+    ${fordFsElr!==null?`<div class="kpi-card"><div class="kpi-label">Ford ELR (FS)</div><div class="kpi-val" style="color:${fordFsElr>=ELR_GOAL?'var(--green)':'var(--amber)'};">${fmt$(fordFsElr)}</div><div class="kpi-sub">Goal: ${fmt$(ELR_GOAL)}</div></div>`:''}
+    ${totalWipRetail>0?`<div class="kpi-card"><div class="kpi-label">Total WIP Retail</div><div class="kpi-val">${fmt$(totalWipRetail)}</div><div class="kpi-sub">across all stores</div></div>`:''}
+  `;
+
+  // Store cards
+  const cardsEl=document.getElementById('g-store-cards');
+  const info={ford:{pill:'pill-ford',label:'Ford Store'},cdjr:{pill:'pill-cdjr',label:'CDJR Store'},body:{pill:'pill-body',label:'Body Shop'}};
+  cardsEl.innerHTML=stores.map(s=>{
+    const w=state[`writer-${s}`]; if(!w) return '';
+    const fs=w.people.filter(p=>p.type==='fs');
+    const fsHro=fs.length?fs.reduce((a,p)=>a+p.hrs,0)/fs.reduce((a,p)=>a+p.ro,0):0;
+    const fsElr=fs.length?fs.reduce((a,p)=>a+p.elr*p.hrs,0)/fs.reduce((a,p)=>a+p.hrs,0):0;
+    const hOk=fsHro>=3,eOk=fsElr>=ELR_GOAL;
+    const dot=hOk&&eOk?'#22c55e':!hOk&&!eOk?'#ef4444':'#f59e0b';
+    return `<div class="store-ov-card" onclick="switchStore('${s}')">
+      <div class="store-ov-header">
+        <div style="display:flex;align-items:center;gap:7px;">
+          <span class="store-pill ${info[s].pill}">${s.toUpperCase()}</span>
+          <span style="font-size:13px;font-weight:500;">${info[s].label}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:5px;"><div class="status-dot" style="background:${dot};"></div><span style="font-size:10px;color:var(--text3);">view →</span></div>
+      </div>
+      <div class="store-mini-grid">
+        <div><div class="mini-stat-label">ROs</div><div class="mini-stat-val">${w.grand.ro}</div></div>
+        <div><div class="mini-stat-label">${state[`sales-${s}`]?'Total sales':'Labor retail'}</div><div class="mini-stat-val" style="font-size:13px;">${state[`sales-${s}`]?fmt$(state[`sales-${s}`].totals.totalSales):fmt$(w.grand.retail)}</div>${state[`sales-${s}`]?`<div class="mini-stat-sub">Gross: ${fmt$(state[`sales-${s}`].totals.totalGross)}</div>`:''}</div>
+        <div><div class="mini-stat-label">FS Hrs/RO</div><div class="mini-stat-val" style="color:${fsHro>=3?'var(--green)':'var(--amber)'};">${fmtN(fsHro)}</div><div class="mini-stat-sub" style="color:${hOk?'var(--green)':'var(--red)'};">${hOk?'above goal':'-'+fmtN(3-fsHro)+' goal'}</div></div>
+        <div><div class="mini-stat-label">ELR (FS)</div><div class="mini-stat-val" style="color:${fsElr>=ELR_GOAL?'var(--green)':'var(--amber)'};">${fmt$(fsElr)}</div><div class="mini-stat-sub" style="color:${eOk?'var(--green)':'var(--red)'};">${eOk?'above goal':'-'+fmt$(ELR_GOAL-fsElr)+' goal'}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  buildGroupCharts(stores);
+}
+
+function buildGroupCharts(stores) {
+  // HRO split
+  const hLabels=[],hData=[],hColors=[],hGoals=[];
+  stores.forEach(s=>{
+    const w=state[`writer-${s}`]; if(!w) return;
+    const sn=s==='ford'?'Ford':s==='cdjr'?'CDJR':'Body';
+    const fs=w.people.filter(p=>p.type==='fs'),lb=w.people.filter(p=>p.type==='lube'),mob=w.people.filter(p=>p.type==='mobile');
+    if(fs.length){const h=fs.reduce((a,p)=>a+p.hrs,0)/fs.reduce((a,p)=>a+p.ro,0);hLabels.push(sn+' FS');hData.push(+h.toFixed(2));hColors.push(h>=3?'#22c55e':h>=2.1?'#f59e0b':'#ef4444');hGoals.push(3.0);}
+    if(lb.length){const h=lb.reduce((a,p)=>a+p.hrs,0)/lb.reduce((a,p)=>a+p.ro,0);hLabels.push(sn+' lube');hData.push(+h.toFixed(2));hColors.push(h>=1?'#22c55e':h>=0.7?'#f59e0b':'#ef4444');hGoals.push(1.0);}
+    if(mob.length){const h=mob.reduce((a,p)=>a+p.hrs,0)/Math.max(mob.reduce((a,p)=>a+p.ro,0),1);hLabels.push(sn+' mobile');hData.push(+h.toFixed(2));hColors.push('#a78bfa');hGoals.push(null);}
+  });
+  destroyChart('g-hro'); charts['g-hro']=new Chart(document.getElementById('g-hro-chart'),{type:'bar',data:{labels:hLabels,datasets:[{data:hData,backgroundColor:hColors,borderRadius:4},{type:'line',data:hGoals,borderColor:'rgba(255,255,255,0.2)',borderDash:[4,3],backgroundColor:'transparent',pointRadius:4,pointBackgroundColor:'rgba(255,255,255,0.2)',spanGaps:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#545d78',font:{size:10}}},y:{min:0,max:7,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#545d78',font:{size:10},callback:v=>v.toFixed(1)}}}}});
+
+  // Retail stacked
+  const rLabels=stores.map(s=>s==='ford'?'Ford':s==='cdjr'?'CDJR':'Body');
+  const rDs=['C','W','I','S'].map(pm=>({label:PM_LABELS[pm],data:stores.map(s=>{const w=state[`writer-${s}`];if(!w)return 0;const p=w.pie.find(r=>r.pm===pm);return p?p.gross:0;}),backgroundColor:PIE_COLORS[pm],borderRadius:3})).filter(ds=>ds.data.some(v=>v>0));
+  destroyChart('g-retail'); charts['g-retail']=new Chart(document.getElementById('g-retail-chart'),{type:'bar',data:{labels:rLabels,datasets:rDs},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#545d78',font:{size:10},boxWidth:7,boxHeight:7}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#545d78',font:{size:10}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#545d78',font:{size:10},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});
+
+  // ELR
+  const eLabels=[],eData=[],eColors=[];
+  stores.forEach(s=>{const w=state[`writer-${s}`];if(!w)return;const fs=w.people.filter(p=>p.type==='fs');if(!fs.length)return;const elr=fs.reduce((a,p)=>a+p.elr*p.hrs,0)/fs.reduce((a,p)=>a+p.hrs,0);eLabels.push(s==='ford'?'Ford':s==='cdjr'?'CDJR':'Body');eData.push(+elr.toFixed(0));eColors.push(elr>=ELR_GOAL?'#22c55e':'#f59e0b');});
+  destroyChart('g-elr'); charts['g-elr']=new Chart(document.getElementById('g-elr-chart'),{type:'bar',data:{labels:eLabels,datasets:[{data:eData,backgroundColor:eColors,borderRadius:4},{type:'line',data:eLabels.map(()=>ELR_GOAL),borderColor:'rgba(255,255,255,0.15)',borderDash:[4,3],backgroundColor:'transparent',pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#545d78',font:{size:10}}},y:{min:0,max:200,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#545d78',font:{size:10},callback:v=>'$'+v}}}}});
+
+  // WIP bar
+  const wLabels=[],wData=[];
+  stores.forEach(s=>{const wip=state[`wip-${s}`];if(!wip)return;wLabels.push(s==='ford'?'Ford':s==='cdjr'?'CDJR':'Body');wData.push(+wip.laborTotal.retail.toFixed(0));});
+  if(wLabels.length){
+    destroyChart('g-wip'); charts['g-wip']=new Chart(document.getElementById('g-wip-chart'),{type:'bar',data:{labels:wLabels,datasets:[{label:'Labor WIP Retail',data:wData,backgroundColor:['#3b82f6','#ef4444','#22c55e'],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#545d78',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#545d78',font:{size:10},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});
+  }
+}
+
+// ── STORE VIEWS ───────────────────────────────────────────────────────────────
+function renderStore(store) {
+  const sub = document.querySelector(`#view-${store} .sub-tab.active`);
+  const subName = sub ? sub.textContent.trim().toLowerCase().replace(' in process','').replace('work','wip').trim() : 'writers';
+  const key = `${store}-${subName==='writers'?'writers':subName==='technicians'?'techs':'wip'}`;
+  if (!builtViews.has(`${store}-writers`)) { buildSubView(store,'writers'); builtViews.add(`${store}-writers`); }
+}
+
+function buildSubView(store, sub) {
+  const container = document.getElementById(`c-${store}-${sub}`);
+  if (!container) return;
+  if (sub==='writers') buildWritersView(store, container);
+  else if (sub==='techs') buildTechsView(store, container);
+  else if (sub==='wip') buildWipView(store, container);
+  else if (sub==='sales') buildSalesView(store, container);
+}
+
+function buildPLASection(container, data, store, isTech) {
+  if (!data) { container.innerHTML='<div class="alert alert-blue"><div class="alert-title">No data loaded</div>Upload a '+(isTech?'technician':'writer')+' PLA for this store.</div>'; return; }
+  const { grand, pie, people } = data;
+  const fs=people.filter(p=>p.type==='fs'), lb=people.filter(p=>p.type==='lube'), mob=people.filter(p=>p.type==='mobile');
+  const fsHro=fs.length?fs.reduce((a,p)=>a+p.hrs,0)/fs.reduce((a,p)=>a+p.ro,0):0;
+  const fsElr=fs.length?fs.reduce((a,p)=>a+p.elr*p.hrs,0)/fs.reduce((a,p)=>a+p.hrs,0):0;
+  const lbHro=lb.length?lb.reduce((a,p)=>a+p.hrs,0)/lb.reduce((a,p)=>a+p.ro,0):null;
+  const hOk=fsHro>=3,eOk=fsElr>=ELR_GOAL;
+  const fsRo=fs.reduce((a,p)=>a+p.ro,0),lbRo=lb.reduce((a,p)=>a+p.ro,0),mobRo=mob.reduce((a,p)=>a+p.ro,0);
+  const tag=t=>t==='lube'?'<span class="tag tag-lube">lube</span>':t==='mobile'?'<span class="tag tag-mobile">mobile</span>':'';
+
+  const splitCols = lb.length&&mob.length?3:lb.length||mob.length?2:1;
+  const splitGrid = splitCols===1?'split-grid-2':splitCols===2?'split-grid-2':'split-grid';
+
+  container.innerHTML=`
+    <div class="kpi-grid">
+      ${grand?`<div class="kpi-card"><div class="kpi-label">Total ROs</div><div class="kpi-val">${grand.ro}</div><div class="kpi-sub">${fsRo} FS${lbRo?' · '+lbRo+' lube':''}${mobRo?' · '+mobRo+' mobile':''}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Retail</div><div class="kpi-val">${fmt$(grand.retail)}</div><div class="kpi-sub">Gross: ${fmt$(grand.gross)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Gross %</div><div class="kpi-val">${fmtN(grand.grossPct,1)}%</div></div>`:''}
+      ${fs.length?`<div class="kpi-card"><div class="kpi-label">FS Hrs/RO</div><div class="kpi-val" style="color:${fsHro>=3?'var(--green)':'var(--amber)'};">${fmtN(fsHro)}</div><div class="kpi-sub">Goal: 3.0</div></div>
+      <div class="kpi-card"><div class="kpi-label">ELR (FS)</div><div class="kpi-val" style="color:${fsElr>=ELR_GOAL?'var(--green)':'var(--amber)'};">${fmt$(fsElr)}</div><div class="kpi-sub">Goal: ${fmt$(ELR_GOAL)}</div></div>`:''}
+    </div>
+    <div class="alert ${hOk&&eOk?'alert-green':!hOk?'alert-amber':'alert-blue'}" >
+      <div class="alert-title">${hOk&&eOk?'Both goals met':'Attention needed'}</div>
+      ${hOk&&eOk?'Full service above both goals.':!hOk?`FS hrs/RO at ${fmtN(fsHro)} — ${fmtN(3-fsHro)} below the 3.0 goal.`:`Hrs/RO above goal at ${fmtN(fsHro)}.`}
+    </div>
+    <div class="${splitGrid}" style="margin-bottom:10px;">
+      ${fs.length?`<div class="split-box split-fs"><div class="split-title">Full service (${fsRo} ROs)</div><div class="split-row"><span class="split-key">Hrs/RO</span><span class="split-val" style="color:${hOk?'var(--green)':'var(--amber)'};">${fmtN(fsHro)}</span></div><div class="split-row"><span class="split-key">Goal</span><span class="split-val">3.0${hOk?' ✓':''}</span></div><div class="split-row"><span class="split-key">ELR</span><span class="split-val" style="color:${eOk?'var(--green)':'var(--amber)'};">${fmt$(fsElr)}</span></div><div class="split-row"><span class="split-key">Goal</span><span class="split-val">${fmt$(ELR_GOAL)}${eOk?' ✓':''}</span></div></div>`:''}
+      ${lb.length?`<div class="split-box split-lube"><div class="split-title">Lube bay (${lbRo} ROs)</div><div class="split-row"><span class="split-key">Hrs/RO</span><span class="split-val" style="color:${lbHro>=1?'var(--green)':lbHro>=0.7?'var(--amber)':'var(--red)'};">${fmtN(lbHro)}</span></div><div class="split-row"><span class="split-key">Goal</span><span class="split-val">1.0${lbHro>=1?' ✓':''}</span></div></div>`:''}
+      ${mob.length?`<div class="split-box split-mobile"><div class="split-title">Mobile (${mobRo} ROs)</div><div class="split-row"><span class="split-key">Not benchmarked</span><span class="split-val">—</span></div></div>`:''}
+    </div>
+    ${pie&&pie.length?`<div class="chart-card"><div class="chart-title">RO type breakdown</div><div class="pie-wrap"><div class="pie-cw"><canvas id="pie-${store}-${isTech?'t':'w'}"></canvas></div><div class="pie-leg" id="pleg-${store}-${isTech?'t':'w'}"></div></div></div>`:''}
+    <div class="two-col">
+      <div class="chart-card"><div class="chart-title">Gross $ by ${isTech?'technician':'writer'}</div><div style="position:relative;height:200px;"><canvas id="gross-${store}-${isTech?'t':'w'}"></canvas></div></div>
+      <div class="chart-card"><div class="chart-title">Hrs/RO vs goal</div><div style="position:relative;height:200px;"><canvas id="hro-${store}-${isTech?'t':'w'}"></canvas></div></div>
+    </div>
+    ${isTech?`<div class="chart-card"><div class="chart-title">Name editor — click to update initials</div><div class="name-editor-hint">Type full names for each technician. Saved automatically in your browser.</div><div class="name-edit-grid" id="name-grid-${store}"></div><button class="save-names-btn" onclick="saveNames('${store}')">Save names</button></div>`:''}
+    <div class="chart-card"><div class="chart-title">${isTech?'Technician':'Writer'} detail</div>
+      <table class="data-table">
+        <thead><tr>
+          <th>${isTech?'Tech':'Writer'}</th><th>ROs</th><th>Hours</th><th>Hrs/RO</th><th>ELR</th><th>Gross</th>
+          ${isTech?'<th>CP</th><th>Warranty</th><th>Internal</th><th>Sublet</th>':''}
+        </tr></thead>
+        <tbody>${people.map(p=>`<tr>
+          <td>${isTech?techDisplayName(p.name):p.name}${tag(p.type)}</td>
+          <td>${p.ro}</td>
+          <td>${fmtN(p.hrs,1)}</td>
+          <td style="color:${textColor(p.hro,p.type)};">${p.type==='mobile'?'—':fmtN(p.hro)}</td>
+          <td>${fmt$(p.elr)}</td>
+          <td>${fmt$(p.gross)}</td>
+          ${isTech?`
+          <td style="color:${(p.pmBreakdown&&p.pmBreakdown.C)?'var(--text)':'var(--text3)'};">${(p.pmBreakdown&&p.pmBreakdown.C)?fmt$(p.pmBreakdown.C.gross):'—'}</td>
+          <td style="color:${(p.pmBreakdown&&p.pmBreakdown.W)?'var(--text)':'var(--text3)'};">${(p.pmBreakdown&&p.pmBreakdown.W)?fmt$(p.pmBreakdown.W.gross):'—'}</td>
+          <td style="color:${(p.pmBreakdown&&p.pmBreakdown.I)?'var(--text)':'var(--text3)'};">${(p.pmBreakdown&&p.pmBreakdown.I)?fmt$(p.pmBreakdown.I.gross):'—'}</td>
+          <td style="color:${(p.pmBreakdown&&p.pmBreakdown.S)?'var(--text)':'var(--text3)'};">${(p.pmBreakdown&&p.pmBreakdown.S)?fmt$(p.pmBreakdown.S.gross):'—'}</td>`:''}
+        </tr>`).join('')}</tbody>
+        <tfoot><tr style="border-top:1px solid var(--border2);">
+          <td style="font-weight:600;color:var(--text2);font-family:'DM Sans',sans-serif;">Total</td>
+          <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:var(--text);padding:9px 0;">${people.reduce((s,p)=>s+p.ro,0)}</td>
+          <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:var(--text);padding:9px 0;">${fmtN(people.reduce((s,p)=>s+p.hrs,0),1)}</td>
+          <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:var(--text);padding:9px 0;">${fmtN(people.reduce((s,p)=>s+p.hrs,0)/Math.max(people.reduce((s,p)=>s+p.ro,0),1))}</td>
+          <td></td>
+          <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:var(--text);padding:9px 0;">${fmt$(people.reduce((s,p)=>s+p.gross,0))}</td>
+          ${isTech?'<td></td><td></td><td></td><td></td>':''}
+        </tr></tfoot>
+      </table></div>`;
+
+  // Build pie
+  if (pie&&pie.length) {
+    const pid=`pie-${store}-${isTech?'t':'w'}`;
+    const tot=pie.reduce((s,r)=>s+r.gross,0);
+    destroyChart(pid); charts[pid]=new Chart(document.getElementById(pid),{type:'doughnut',data:{labels:pie.map(r=>r.label),datasets:[{data:pie.map(r=>r.gross),backgroundColor:pie.map(r=>r.color),borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>' '+fmt$(ctx.parsed)+' ('+Math.round(ctx.parsed/tot*100)+'%)'}}}}});
+    const lel=document.getElementById(`pleg-${store}-${isTech?'t':'w'}`);
+    pie.forEach(r=>{const pct=Math.round(r.gross/tot*100);lel.innerHTML+=`<div class="pie-leg-row"><div class="pie-leg-left"><div class="pie-dot" style="background:${r.color}"></div><span>${r.label}</span></div><span class="pie-val">${fmt$(r.gross)}</span><span class="pie-pct">${pct}%</span></div>`;});
+  }
+
+  // Charts
+  const names=people.map(p=>isTech?techDisplayName(p.name):p.name.split(' ').pop());
+  const gid=`gross-${store}-${isTech?'t':'w'}`, hid=`hro-${store}-${isTech?'t':'w'}`;
+  destroyChart(gid); charts[gid]=new Chart(document.getElementById(gid),{type:'bar',data:{labels:names,datasets:[{data:people.map(p=>p.gross),backgroundColor:people.map(p=>barColor(p.hro,p.type)),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#545d78',font:{size:10}}},y:{grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#545d78',font:{size:10},callback:v=>'$'+(v/1000).toFixed(1)+'k'}}}}});
+  const goals=people.map(p=>GOALS[p.type]);
+  destroyChart(hid); charts[hid]=new Chart(document.getElementById(hid),{type:'bar',data:{labels:names,datasets:[{data:people.map(p=>Math.min(p.hro,6)),backgroundColor:people.map(p=>barColor(p.hro,p.type)),borderRadius:4},{type:'line',data:goals,borderColor:'rgba(255,255,255,0.15)',borderDash:[4,3],backgroundColor:'transparent',pointRadius:4,pointBackgroundColor:people.map(p=>p.type==='mobile'?'transparent':'rgba(255,255,255,0.15)'),spanGaps:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{color:'#545d78',font:{size:10}}},y:{min:0,max:6,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#545d78',font:{size:10},callback:v=>v.toFixed(1)}}}}});
+
+  // Name editor
+  if (isTech) {
+    const grid=document.getElementById(`name-grid-${store}`);
+    people.forEach(p=>{
+      grid.innerHTML+=`<div class="name-edit-row"><span class="name-edit-init">${p.name}</span><input class="name-edit-input" id="ne-${store}-${p.name}" placeholder="Full name" value="${techNames[p.name]||''}"></div>`;
+    });
+  }
+}
+
+function buildWritersView(store, container) { buildPLASection(container, state[`writer-${store}`], store, false); }
+function buildTechsView(store, container) { buildPLASection(container, state[`tech-${store}`], store, true); }
+
+function saveNames(store) {
+  const techData=state[`tech-${store}`];
+  if(!techData) return;
+  techData.people.forEach(p=>{
+    const inp=document.getElementById(`ne-${store}-${p.name}`);
+    if(inp&&inp.value.trim()) techNames[p.name]=inp.value.trim();
+  });
+  localStorage.setItem('techNames', JSON.stringify(techNames));
+  // Refresh tech view
+  const cont=document.getElementById(`c-${store}-techs`);
+  cont.innerHTML='';
+  builtViews.delete(`${store}-techs`);
+  buildTechsView(store,cont);
+  builtViews.add(`${store}-techs`);
+}
+
+function saveWipNames(store) {
+  const wip = state[`wip-${store}`];
+  if (!wip) return;
+  wip.laborRows.filter(r=>r.name!=='HOUSE TECH').forEach(r=>{
+    const inp = document.getElementById(`wne-${store}-${r.name}`);
+    if (inp && inp.value.trim()) techNames[r.name] = inp.value.trim();
+  });
+  localStorage.setItem('techNames', JSON.stringify(techNames));
+  // Rebuild WIP view so display names update immediately
+  const cont = document.getElementById(`c-${store}-wip`);
+  cont.innerHTML = '';
+  builtViews.delete(`${store}-wip`);
+  buildWipView(store, cont);
+  builtViews.add(`${store}-wip`);
+}
+
+function buildWipView(store, container) {
+  const wip=state[`wip-${store}`];
+  if(!wip){container.innerHTML='<div class="alert alert-blue"><div class="alert-title">No WIP data loaded</div>Upload a WIP export for this store.</div>';return;}
+  const {laborRows,partsRows,otherRows,laborTotal,partsTotal,otherTotal,finalTotal}=wip;
+  const maxRetail=Math.max(...laborRows.map(r=>r.retail),1);
+
+  container.innerHTML=`
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Total WIP Retail</div><div class="kpi-val">${fmt$(finalTotal.retail)}</div><div class="kpi-sub">Cost: ${fmt$(finalTotal.cost)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Labor WIP</div><div class="kpi-val">${fmt$(laborTotal.retail)}</div><div class="kpi-sub">Cost: ${fmt$(laborTotal.cost)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Parts WIP</div><div class="kpi-val">${fmt$(partsTotal.retail)}</div><div class="kpi-sub">Cost: ${fmt$(partsTotal.cost)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Customer Pay</div><div class="kpi-val">${fmt$(finalTotal.cp)}</div><div class="kpi-sub">${Math.round(finalTotal.cp/finalTotal.retail*100)}% of total</div></div>
+      <div class="kpi-card"><div class="kpi-label">Warranty</div><div class="kpi-val">${fmt$(finalTotal.war)}</div><div class="kpi-sub">${Math.round(finalTotal.war/finalTotal.retail*100)}% of total</div></div>
+      <div class="kpi-card"><div class="kpi-label">Internal</div><div class="kpi-val">${fmt$(finalTotal.int)}</div><div class="kpi-sub">${Math.round(finalTotal.int/finalTotal.retail*100)}% of total</div></div>
+    </div>
+
+    <div class="two-col">
+      <div class="chart-card">
+        <div class="chart-title">WIP by type</div>
+        <div style="position:relative;height:180px;"><canvas id="wip-type-${store}"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Labor WIP by technician</div>
+        <div style="position:relative;height:180px;"><canvas id="wip-tech-${store}"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Labor in process — technician breakdown</div>
+      <div style="display:grid;grid-template-columns:1.4fr repeat(5,1fr);gap:4px;padding:0 0 8px;border-bottom:1px solid var(--border);margin-bottom:4px;">
+        <div style="font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;">Tech</div>
+        <div class="wip-cell-head">Retail</div><div class="wip-cell-head">Cost</div>
+        <div class="wip-cell-head">Cust Pay</div><div class="wip-cell-head">Warranty</div><div class="wip-cell-head">Internal</div>
+      </div>
+      ${laborRows.filter(r=>r.name!=='HOUSE TECH').map(r=>`
+        <div style="display:grid;grid-template-columns:1.4fr repeat(5,1fr);gap:4px;padding:8px 0;border-bottom:1px solid var(--border);align-items:center;">
+          <div>
+            <div style="font-size:12px;font-weight:500;color:var(--text);">${techDisplayName(r.name)}</div>
+            <div class="wip-bar-wrap" style="margin-top:4px;"><div class="wip-bar" style="width:${Math.round(r.retail/maxRetail*100)}%;background:#3b82f6;"></div></div>
+          </div>
+          <div class="wip-cell">${fmt$(r.retail)}</div>
+          <div class="wip-cell">${fmt$(r.cost)}</div>
+          <div class="wip-cell" style="color:${r.cp>0?'var(--text)':'var(--text3)'};">${r.cp>0?fmt$(r.cp):'—'}</div>
+          <div class="wip-cell" style="color:${r.war>0?'var(--text)':'var(--text3)'};">${r.war>0?fmt$(r.war):'—'}</div>
+          <div class="wip-cell" style="color:${r.int>0?'var(--text)':'var(--text3)'};">${r.int>0?fmt$(r.int):'—'}</div>
+        </div>`).join('')}
+      <div style="display:grid;grid-template-columns:1.4fr repeat(5,1fr);gap:4px;padding:8px 0;">
+        <div style="font-size:11px;font-weight:600;color:var(--text2);">Total</div>
+        <div class="wip-cell" style="color:var(--text);font-weight:600;">${fmt$(laborTotal.retail)}</div>
+        <div class="wip-cell" style="color:var(--text);font-weight:600;">${fmt$(laborTotal.cost)}</div>
+        <div class="wip-cell" style="color:var(--text);font-weight:600;">${fmt$(laborTotal.cp)}</div>
+        <div class="wip-cell" style="color:var(--text);font-weight:600;">${fmt$(laborTotal.war)}</div>
+        <div class="wip-cell" style="color:var(--text);font-weight:600;">${fmt$(laborTotal.int)}</div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Name editor</div>
+      <div class="name-editor-hint">Type full names for each technician. Saved automatically and shared across all tabs.</div>
+      <div class="name-edit-grid" id="wip-name-grid-${store}"></div>
+      <button class="save-names-btn" onclick="saveWipNames('${store}')">Save names</button>
+    </div>`;
+
+  // Populate name editor for WIP techs
+  const wipNameGrid = document.getElementById(`wip-name-grid-${store}`);
+  laborRows.filter(r=>r.name!=='HOUSE TECH').forEach(r=>{
+    wipNameGrid.innerHTML+=`<div class="name-edit-row"><span class="name-edit-init">${r.name}</span><input class="name-edit-input" id="wne-${store}-${r.name}" placeholder="Full name" value="${techNames[r.name]||''}"></div>`;
+  });
+
+  // WIP type donut
+  const typeData=[{l:'Customer Pay',v:finalTotal.cp,c:'#3b82f6'},{l:'Warranty',v:finalTotal.war,c:'#22c55e'},{l:'Internal',v:finalTotal.int,c:'#a78bfa'},{l:'Contract',v:finalTotal.con,c:'#f59e0b'}].filter(d=>d.v>0);
+  const wtt=`wip-type-${store}`;
+  destroyChart(wtt); charts[wtt]=new Chart(document.getElementById(wtt),{type:'doughnut',data:{labels:typeData.map(d=>d.l),datasets:[{data:typeData.map(d=>d.v),backgroundColor:typeData.map(d=>d.c),borderWidth:0,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{labels:{color:'#545d78',font:{size:10},boxWidth:8,boxHeight:8}}}}});
+
+  // Tech bar
+  const techLbls=laborRows.filter(r=>r.name!=='HOUSE TECH').map(r=>techDisplayName(r.name));
+  const wtc=`wip-tech-${store}`;
+  destroyChart(wtc); charts[wtc]=new Chart(document.getElementById(wtc),{type:'bar',data:{labels:techLbls,datasets:[{label:'CP',data:laborRows.filter(r=>r.name!=='HOUSE TECH').map(r=>r.cp),backgroundColor:'#3b82f6',borderRadius:3},{label:'Warranty',data:laborRows.filter(r=>r.name!=='HOUSE TECH').map(r=>r.war),backgroundColor:'#22c55e',borderRadius:3},{label:'Internal',data:laborRows.filter(r=>r.name!=='HOUSE TECH').map(r=>r.int),backgroundColor:'#a78bfa',borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#545d78',font:{size:10},boxWidth:7,boxHeight:7}}},scales:{x:{stacked:true,grid:{display:false},ticks:{color:'#545d78',font:{size:9}}},y:{stacked:true,grid:{color:'rgba(255,255,255,0.05)'},ticks:{color:'#545d78',font:{size:9},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}}});
+}
+
+// ── SUPABASE ──────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://uyynpxixfklbixlnlvlz.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5eW5weGl4ZmtsYml4bG5sdmx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1OTk4MTYsImV4cCI6MjA5MTE3NTgxNn0.8-4zyHKSupFqg9eSjYK8e7QRL_fM698jeoRZeTYncQk';
+const VIEW_PASSWORD = 'Dealers2025!';
+
+function checkLogin() {
+  const pw = document.getElementById('view-pw').value;
+  if (pw === VIEW_PASSWORD) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('upload-screen').style.display = 'flex';
+    document.getElementById('upload-screen').style.flexDirection = 'column';
+    document.getElementById('upload-screen').style.alignItems = 'center';
+    document.getElementById('upload-screen').style.justifyContent = 'center';
+    document.getElementById('upload-screen').style.minHeight = '100vh';
+    loadFromSupabase();
+  } else {
+    document.getElementById('login-err').textContent = 'Incorrect password';
+  }
+}
+
+function setProgress(pct) {
+  const bar = document.getElementById('loading-progress');
+  if (bar) bar.style.width = pct + '%';
+}
+
+async function sb(path) {
+  const r = await fetch(SUPABASE_URL + path, {
+    headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY }
+  });
+  if (!r.ok) throw new Error('Supabase error: ' + r.status);
+  return r.json();
+}
+
+async function loadFromSupabase() {
+  try {
+    setProgress(20);
+    document.getElementById('loading-sub').textContent = 'Fetching reports...';
+
+    const [reports, nameRows] = await Promise.all([
+      sb('/rest/v1/reports?select=store,report_type,data,uploaded_at&order=uploaded_at.desc'),
+      sb('/rest/v1/tech_names?select=initial,full_name')
+    ]);
+
+    setProgress(60);
+    document.getElementById('loading-sub').textContent = 'Processing data...';
+
+    // Load tech names
+    nameRows.forEach(r => { techNames[r.initial] = r.full_name; });
+
+    // Load reports — take latest per store+type
+    const seen = new Set();
+    reports.forEach(r => {
+      const key = `${r.report_type}-${r.store}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        state[key] = r.data;
+      }
+    });
+
+    setProgress(90);
+    document.getElementById('loading-sub').textContent = 'Building dashboard...';
+
+    if (Object.keys(state).length === 0) {
+      document.getElementById('loading-title').textContent = 'No data yet';
+      document.getElementById('loading-sub').textContent = 'Upload reports via the admin portal to get started.';
+      setProgress(100);
+      return;
+    }
+
+    setProgress(100);
+    setTimeout(() => {
+      document.getElementById('upload-screen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      const dateStr = reports[0] ? new Date(reports[0].uploaded_at).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+      document.getElementById('report-date').textContent = dateStr ? 'Updated ' + dateStr : '';
+      ['ford','cdjr','body'].forEach(s => {
+        const has = ['writer','tech','wip'].some(t => state[`${t}-${s}`]);
+        if (has) document.getElementById(`tab-${s}`).style.display = '';
+      });
+      renderGroup();
+    }, 300);
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById('loading-title').textContent = 'Could not load data';
+    document.getElementById('loading-sub').textContent = err.message;
+    document.getElementById('loading-err').style.display = 'block';
+    document.getElementById('loading-err').textContent = 'Check your internet connection and try refreshing.';
+  }
+}
+
+// ── SALES REPORT ─────────────────────────────────────────────────────────────
+function parseSales(lines) {
+  lines = lines.map(l => l.trim()).filter(l => l);
+  // Find header row
+  let hi = 0;
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    const cells = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+    if (cells.includes('Writer') || cells.includes('LaborSales') || cells.includes('TotalSales')) { hi = i; break; }
+  }
+  const headers = lines[hi].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  const pf = s => parseFloat(String(s || '').replace(/[$,]/g, '').trim()) || 0;
+
+  const rows = lines.slice(hi + 1)
+    .map(line => {
+      const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+      const obj = {}; headers.forEach((h, i) => { obj[h] = vals[i] || ''; }); return obj;
+    })
+    .filter(r => r.Writer && r.Writer.trim() && !r.Writer.includes('Total') && !r.Writer.includes('==='));
+
+  const writers = rows.map(r => ({
+    name: r.Writer.trim(),
+    ro: pf(r.ROCount),
+    laborSales: pf(r.LaborSales), laborGross: pf(r.LaborGross),
+    partsSales: pf(r.PartsSales), partsGross: pf(r.PartsGross),
+    subletSales: pf(r.SubletSales), subletGross: pf(r.SubletGross),
+    totalSales: pf(r.TotalSales), totalGross: pf(r.TotalGross),
+    get ptlRatio() { return this.laborSales > 0 ? +(this.partsSales / this.laborSales).toFixed(2) : 0; },
+    get laborGrossPct() { return this.laborSales > 0 ? Math.round(this.laborGross / this.laborSales * 100) : 0; },
+    get partsGrossPct() { return this.partsSales > 0 ? Math.round(this.partsGross / this.partsSales * 100) : 0; },
+    get totalGrossPct() { return this.totalSales > 0 ? Math.round(this.totalGross / this.totalSales * 100) : 0; },
+    type: WRITER_TYPES[r.Writer.trim()] || 'fs'
+  }));
+
+  const totals = writers.reduce((t, w) => {
+    t.ro += w.ro; t.laborSales += w.laborSales; t.laborGross += w.laborGross;
+    t.partsSales += w.partsSales; t.partsGross += w.partsGross;
+    t.subletSales += w.subletSales; t.subletGross += w.subletGross;
+    t.totalSales += w.totalSales; t.totalGross += w.totalGross;
+    return t;
+  }, { ro:0, laborSales:0, laborGross:0, partsSales:0, partsGross:0, subletSales:0, subletGross:0, totalSales:0, totalGross:0 });
+
+  return { writers, totals };
+}
+
+function buildSalesView(store, container) {
+  const data = state[`sales-${store}`];
+  if (!data) { container.innerHTML = '<div class="alert alert-blue"><div class="alert-title">No sales data loaded</div>Upload a service writer sales report for this store via the admin portal.</div>'; return; }
+  const { writers, totals } = data;
+  const ptl = totals.laborSales > 0 ? (totals.partsSales / totals.laborSales).toFixed(2) : '—';
+  const ptlColor = parseFloat(ptl) >= 1 ? 'var(--green)' : parseFloat(ptl) >= 0.7 ? 'var(--amber)' : 'var(--red)';
+  const totalGrossPct = totals.totalSales > 0 ? Math.round(totals.totalGross / totals.totalSales * 100) : 0;
+
+  container.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">Total Sales</div><div class="kpi-val">${fmt$(totals.totalSales)}</div><div class="kpi-sub">Gross: ${fmt$(totals.totalGross)} (${totalGrossPct}%)</div></div>
+      <div class="kpi-card"><div class="kpi-label">Labor Sales</div><div class="kpi-val">${fmt$(totals.laborSales)}</div><div class="kpi-sub">Gross: ${fmt$(totals.laborGross)} (${totals.laborSales>0?Math.round(totals.laborGross/totals.laborSales*100):0}%)</div></div>
+      <div class="kpi-card"><div class="kpi-label">Parts Sales</div><div class="kpi-val">${fmt$(totals.partsSales)}</div><div class="kpi-sub">Gross: ${fmt$(totals.partsGross)} (${totals.partsSales>0?Math.round(totals.partsGross/totals.partsSales*100):0}%)</div></div>
+      ${totals.subletSales > 0 ? `<div class="kpi-card"><div class="kpi-label">Sublet Sales</div><div class="kpi-val">${fmt$(totals.subletSales)}</div><div class="kpi-sub">Gross: ${fmt$(totals.subletGross)}</div></div>` : ''}
+      <div class="kpi-card"><div class="kpi-label">Parts-to-Labor</div><div class="kpi-val" style="color:${ptlColor};">${ptl}</div><div class="kpi-sub">Benchmark: 1.0</div></div>
+      <div class="kpi-card"><div class="kpi-label">Total ROs</div><div class="kpi-val">${totals.ro}</div></div>
+    </div>
+
+    <div class="two-col">
+      <div class="chart-card">
+        <div class="chart-title">Total gross by writer</div>
+        <div style="position:relative;height:220px;"><canvas id="sales-gross-${store}"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Labor vs parts sales — stacked</div>
+        <div style="position:relative;height:220px;"><canvas id="sales-split-${store}"></canvas></div>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Parts-to-labor ratio by writer</div>
+      <div class="legend-row">
+        <div class="legend-item"><div class="legend-dot" style="background:#22c55e;"></div>At or above 1.0</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;"></div>0.7–1.0</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#ef4444;"></div>Below 0.7</div>
+      </div>
+      <div style="position:relative;height:160px;"><canvas id="sales-ptl-${store}"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title">Writer sales detail</div>
+      <table class="data-table">
+        <thead><tr>
+          <th>Writer</th><th>ROs</th>
+          <th>Labor sales</th><th>Labor gross</th>
+          <th>Parts sales</th><th>Parts gross</th>
+          <th>Total sales</th><th>Total gross</th>
+          <th>P:L ratio</th>
+        </tr></thead>
+        <tbody>
+          ${writers.map(w => `<tr>
+            <td>${w.name}<span class="tag ${w.type==='lube'?'tag-lube':w.type==='mobile'?'tag-mobile':''}">${w.type==='lube'?'lube':w.type==='mobile'?'mobile':''}</span></td>
+            <td>${w.ro}</td>
+            <td>${fmt$(w.laborSales)}</td>
+            <td>${fmt$(w.laborGross)} <span style="color:var(--text3);font-size:10px;">(${w.laborGrossPct}%)</span></td>
+            <td>${w.partsSales > 0 ? fmt$(w.partsSales) : '—'}</td>
+            <td>${w.partsGross > 0 ? fmt$(w.partsGross)+' <span style="color:var(--text3);font-size:10px;">('+w.partsGrossPct+'%)</span>' : '—'}</td>
+            <td>${fmt$(w.totalSales)}</td>
+            <td style="color:var(--text);font-weight:500;">${fmt$(w.totalGross)} <span style="color:var(--text3);font-size:10px;">(${w.totalGrossPct}%)</span></td>
+            <td style="color:${w.ptlRatio>=1?'var(--green)':w.ptlRatio>=0.7?'var(--amber)':'var(--red)'};">${w.laborSales>0?w.ptlRatio:'—'}</td>
+          </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="border-top:1px solid var(--border2);">
+            <td style="font-weight:600;color:var(--text2);font-family:'DM Sans',sans-serif;">Total</td>
+            <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:var(--text);padding:9px 0;">${totals.ro}</td>
+            <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:var(--text);padding:9px 0;">${fmt$(totals.laborSales)}</td>
+            <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:var(--text);padding:9px 0;">${fmt$(totals.laborGross)}</td>
+            <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:var(--text);padding:9px 0;">${fmt$(totals.partsSales)}</td>
+            <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:var(--text);padding:9px 0;">${fmt$(totals.partsGross)}</td>
+            <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:var(--text);padding:9px 0;">${fmt$(totals.totalSales)}</td>
+            <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:var(--text);padding:9px 0;">${fmt$(totals.totalGross)}</td>
+            <td style="font-family:'DM Mono',monospace;text-align:right;font-weight:600;color:${ptlColor};padding:9px 0;">${ptl}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>`;
+
+  // Total gross bar
+  const names = writers.map(w => w.name.split(' ').pop());
+  const grossColors = writers.map(w => w.type==='lube'?'#f59e0b':w.type==='mobile'?'#a78bfa':'#3b82f6');
+  const sgc = `sales-gross-${store}`;
+  destroyChart(sgc);
+  charts[sgc] = new Chart(document.getElementById(sgc), {
+    type: 'bar',
+    data: { labels: names, datasets: [{ data: writers.map(w => w.totalGross), backgroundColor: grossColors, borderRadius: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: {
+      x: { grid: { display: false }, ticks: { color: '#545d78', font: { size: 10 } } },
+      y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#545d78', font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(1) + 'k' } }
+    }}
+  });
+
+  // Stacked labor vs parts
+  const ssc = `sales-split-${store}`;
+  destroyChart(ssc);
+  charts[ssc] = new Chart(document.getElementById(ssc), {
+    type: 'bar',
+    data: { labels: names, datasets: [
+      { label: 'Labor', data: writers.map(w => w.laborSales), backgroundColor: '#3b82f6', borderRadius: 3 },
+      { label: 'Parts', data: writers.map(w => w.partsSales), backgroundColor: '#22c55e', borderRadius: 3 },
+      { label: 'Sublet', data: writers.map(w => w.subletSales), backgroundColor: '#f59e0b', borderRadius: 3 },
+    ]},
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { labels: { color: '#545d78', font: { size: 10 }, boxWidth: 8, boxHeight: 8 } } },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { color: '#545d78', font: { size: 10 } } },
+        y: { stacked: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#545d78', font: { size: 10 }, callback: v => '$' + (v/1000).toFixed(1) + 'k' } }
+      }
+    }
+  });
+
+  // P:L ratio
+  const ptlColors = writers.map(w => w.ptlRatio >= 1 ? '#22c55e' : w.ptlRatio >= 0.7 ? '#f59e0b' : '#ef4444');
+  const spc = `sales-ptl-${store}`;
+  destroyChart(spc);
+  charts[spc] = new Chart(document.getElementById(spc), {
+    type: 'bar',
+    data: { labels: names, datasets: [
+      { data: writers.map(w => w.laborSales > 0 ? w.ptlRatio : 0), backgroundColor: ptlColors, borderRadius: 4 },
+      { type: 'line', data: writers.map(() => 1.0), borderColor: 'rgba(255,255,255,0.2)', borderDash: [4,3], backgroundColor: 'transparent', pointRadius: 0 }
+    ]},
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: {
+      x: { grid: { display: false }, ticks: { color: '#545d78', font: { size: 10 } } },
+      y: { min: 0, max: Math.max(...writers.map(w=>w.ptlRatio), 1.5) + 0.2, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#545d78', font: { size: 10 }, callback: v => v.toFixed(1) } }
+    }}
+  });
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openModal(){document.getElementById('update-modal').classList.add('open');}
+function closeModal(){
+  document.getElementById('update-modal').classList.remove('open');
+  Object.keys(pending).forEach(k=>delete pending[k]);
+  const allKeys=['writer-ford','writer-cdjr','writer-body','tech-ford','tech-cdjr','tech-body','wip-ford','wip-cdjr','wip-body'];
+  allKeys.forEach(k=>{const el=document.getElementById(`mdrop-${k}`);if(el){el.classList.remove('loaded');const s=document.getElementById(`ms-${k}`);if(s)s.textContent='current';}});
+}
+function applyUpdate(){
+  Object.keys(pending).forEach(k=>{state[k]=pending[k];});
+  document.getElementById('report-date').textContent=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  closeModal();
+  // Reset built views
+  builtViews.clear();
+  ['ford','cdjr','body'].forEach(s=>{
+    ['writers','techs','wip'].forEach(sub=>{const c=document.getElementById(`c-${s}-${sub}`);if(c)c.innerHTML='';});
+    const has=['writer','tech','wip'].some(t=>state[`${t}-${s}`]);
+    if(has) document.getElementById(`tab-${s}`).style.display='';
+  });
+  renderGroup();
+}
+</script>
+</body>
+</html>

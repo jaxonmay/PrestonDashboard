@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — Data Upload</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
+:root{--bg:#0f1117;--surface:#181c27;--surface2:#1e2333;--border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);--text:#f0f2f8;--text2:#8b92a8;--text3:#545d78;--green:#22c55e;--green-dim:rgba(34,197,94,0.12);--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;--blue-dim:rgba(59,130,246,0.12);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;}
+.login-box{background:var(--surface);border:1px solid var(--border2);border-radius:12px;padding:2.5rem;width:100%;max-width:360px;}
+.login-logo{font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:1.5rem;}
+.login-title{font-size:20px;font-weight:300;margin-bottom:.3rem;}
+.login-sub{font-size:12px;color:var(--text3);margin-bottom:1.5rem;}
+.login-input{width:100%;background:var(--surface2);border:1px solid var(--border2);border-radius:6px;padding:10px 14px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;margin-bottom:10px;outline:none;}
+.login-input:focus{border-color:var(--blue);}
+.login-btn{width:100%;background:var(--blue);color:white;border:none;padding:11px;border-radius:6px;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;}
+.login-btn:hover{opacity:.85;}
+.login-err{font-size:12px;color:var(--red);margin-top:8px;min-height:16px;}
+
+#upload-screen{display:none;padding:2rem;max-width:900px;margin:0 auto;}
+.topbar-logo{font-size:10px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;color:var(--text3);margin-bottom:.5rem;}
+.page-title{font-size:22px;font-weight:300;margin-bottom:.3rem;}
+.page-sub{font-size:13px;color:var(--text2);margin-bottom:2rem;}
+
+.section-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;margin-top:1.5rem;}
+.drop-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media(max-width:600px){.drop-grid{grid-template-columns:1fr;}}
+.store-drop{border:1px dashed var(--border2);border-radius:10px;padding:1.2rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);}
+.store-drop:hover,.store-drop.drag-over{border-color:var(--blue);background:var(--blue-dim);}
+.store-drop.loaded{border-color:var(--green);background:var(--green-dim);}
+.store-drop.uploading{border-color:var(--amber);background:rgba(245,158,11,.1);animation:pulse 1s infinite;}
+.store-drop.done{border-color:var(--green);background:var(--green-dim);}
+.store-drop.error{border-color:var(--red);background:rgba(239,68,68,.1);}
+.store-drop input{display:none;}
+.drop-name{font-size:12px;font-weight:600;margin-bottom:3px;}
+.drop-hint{font-size:10px;color:var(--text3);margin-bottom:8px;}
+.drop-status{font-size:10px;color:var(--text2);font-family:'DM Mono',monospace;min-height:14px;}
+
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.6;}}
+
+.name-section{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.25rem;margin-top:1.5rem;}
+.name-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin:10px 0 14px;}
+.name-row{display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:7px 10px;}
+.name-init{font-size:12px;font-weight:600;color:var(--text2);font-family:'DM Mono',monospace;min-width:40px;}
+.name-input{background:transparent;border:none;color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;flex:1;outline:none;}
+.name-input::placeholder{color:var(--text3);}
+.save-btn{background:var(--blue);color:white;border:none;padding:9px 24px;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;}
+.save-btn:hover{opacity:.85;}
+.save-status{font-size:11px;color:var(--green);margin-left:12px;display:inline-block;min-height:16px;}
+
+.view-link{display:inline-flex;align-items:center;gap:6px;margin-top:1.5rem;font-size:12px;color:var(--text3);text-decoration:none;padding:7px 14px;border:1px solid var(--border2);border-radius:6px;transition:all .15s;}
+.view-link:hover{color:var(--text);background:var(--surface2);}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">Dealer Group Dashboard</div>
+    <div class="login-title">Upload portal</div>
+    <div class="login-sub">Admin access only</div>
+    <input class="login-input" type="password" id="upload-pw" placeholder="Password" onkeydown="if(event.key==='Enter')checkUploadLogin()">
+    <button class="login-btn" onclick="checkUploadLogin()">Sign in</button>
+    <div class="login-err" id="upload-err"></div>
+  </div>
+</div>
+
+<div id="upload-screen">
+  <div class="topbar-logo">Dealer Group · Dashboard</div>
+  <div class="page-title">Upload reports</div>
+  <div class="page-sub">Drop Dealertrack exports below. Data updates for all viewers immediately after upload.</div>
+
+  <div class="section-label">Service Writer PLA</div>
+  <div class="drop-grid">
+    <div class="store-drop" id="drop-writer-ford" ondrop="handleDrop(event,'writer','ford')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-writer-ford').click()">
+      <input type="file" id="f-writer-ford" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'writer','ford')">
+      <div class="drop-name" style="color:#60a5fa;">Ford Store</div>
+      <div class="drop-hint">Writer PLA</div>
+      <div class="drop-status" id="s-writer-ford">Drop or click</div>
+    </div>
+    <div class="store-drop" id="drop-writer-cdjr" ondrop="handleDrop(event,'writer','cdjr')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-writer-cdjr').click()">
+      <input type="file" id="f-writer-cdjr" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'writer','cdjr')">
+      <div class="drop-name" style="color:#f87171;">CDJR Store</div>
+      <div class="drop-hint">Writer PLA</div>
+      <div class="drop-status" id="s-writer-cdjr">Drop or click</div>
+    </div>
+    <div class="store-drop" id="drop-writer-body" ondrop="handleDrop(event,'writer','body')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-writer-body').click()">
+      <input type="file" id="f-writer-body" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'writer','body')">
+      <div class="drop-name" style="color:#4ade80;">Body Shop</div>
+      <div class="drop-hint">Writer PLA</div>
+      <div class="drop-status" id="s-writer-body">Drop or click</div>
+    </div>
+  </div>
+
+  <div class="section-label">Technician PLA</div>
+  <div class="drop-grid">
+    <div class="store-drop" id="drop-tech-ford" ondrop="handleDrop(event,'tech','ford')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-tech-ford').click()">
+      <input type="file" id="f-tech-ford" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'tech','ford')">
+      <div class="drop-name" style="color:#60a5fa;">Ford Store</div>
+      <div class="drop-hint">Tech PLA</div>
+      <div class="drop-status" id="s-tech-ford">Drop or click</div>
+    </div>
+    <div class="store-drop" id="drop-tech-cdjr" ondrop="handleDrop(event,'tech','cdjr')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-tech-cdjr').click()">
+      <input type="file" id="f-tech-cdjr" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'tech','cdjr')">
+      <div class="drop-name" style="color:#f87171;">CDJR Store</div>
+      <div class="drop-hint">Tech PLA</div>
+      <div class="drop-status" id="s-tech-cdjr">Drop or click</div>
+    </div>
+    <div class="store-drop" id="drop-tech-body" ondrop="handleDrop(event,'tech','body')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-tech-body').click()">
+      <input type="file" id="f-tech-body" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'tech','body')">
+      <div class="drop-name" style="color:#4ade80;">Body Shop</div>
+      <div class="drop-hint">Tech PLA</div>
+      <div class="drop-status" id="s-tech-body">Drop or click</div>
+    </div>
+  </div>
+
+  <div class="section-label">Work in Process</div>
+  <div class="drop-grid">
+    <div class="store-drop" id="drop-wip-ford" ondrop="handleDrop(event,'wip','ford')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-wip-ford').click()">
+      <input type="file" id="f-wip-ford" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'wip','ford')">
+      <div class="drop-name" style="color:#60a5fa;">Ford Store</div>
+      <div class="drop-hint">WIP export</div>
+      <div class="drop-status" id="s-wip-ford">Drop or click</div>
+    </div>
+    <div class="store-drop" id="drop-wip-cdjr" ondrop="handleDrop(event,'wip','cdjr')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-wip-cdjr').click()">
+      <input type="file" id="f-wip-cdjr" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'wip','cdjr')">
+      <div class="drop-name" style="color:#f87171;">CDJR Store</div>
+      <div class="drop-hint">WIP export</div>
+      <div class="drop-status" id="s-wip-cdjr">Drop or click</div>
+    </div>
+    <div class="store-drop" id="drop-wip-body" ondrop="handleDrop(event,'wip','body')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-wip-body').click()">
+      <input type="file" id="f-wip-body" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'wip','body')">
+      <div class="drop-name" style="color:#4ade80;">Body Shop</div>
+      <div class="drop-hint">WIP export</div>
+      <div class="drop-status" id="s-wip-body">Drop or click</div>
+    </div>
+  </div>
+
+  <div class="name-section" style="margin-top:1.5rem;">
+    <div style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:4px;">Technician name editor</div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Map initials to full names. Loads existing saved names automatically.</div>
+    <div class="name-grid" id="name-grid">
+      <div style="font-size:11px;color:var(--text3);">Loading saved names...</div>
+    </div>
+    <button class="save-btn" onclick="saveNames()">Save names</button>
+    <span class="save-status" id="save-status"></span>
+  </div>
+
+  <div class="section-label">Sales Report (Labor + Parts)</div>
+  <div class="drop-grid">
+    <div class="store-drop" id="drop-sales-ford" ondrop="handleDrop(event,'sales','ford')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-sales-ford').click()">
+      <input type="file" id="f-sales-ford" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'sales','ford')">
+      <div class="drop-name" style="color:#60a5fa;">Ford Store</div>
+      <div class="drop-hint">Writer sales report</div>
+      <div class="drop-status" id="s-sales-ford">Drop or click</div>
+    </div>
+    <div class="store-drop" id="drop-sales-cdjr" ondrop="handleDrop(event,'sales','cdjr')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-sales-cdjr').click()">
+      <input type="file" id="f-sales-cdjr" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'sales','cdjr')">
+      <div class="drop-name" style="color:#f87171;">CDJR Store</div>
+      <div class="drop-hint">Writer sales report</div>
+      <div class="drop-status" id="s-sales-cdjr">Drop or click</div>
+    </div>
+    <div class="store-drop" id="drop-sales-body" ondrop="handleDrop(event,'sales','body')" ondragover="dragOver(event)" ondragleave="dragLeave(event)" onclick="document.getElementById('f-sales-body').click()">
+      <input type="file" id="f-sales-body" accept=".csv,.xls,.xlsx" onchange="handleFile(this,'sales','body')">
+      <div class="drop-name" style="color:#4ade80;">Body Shop</div>
+      <div class="drop-hint">Writer sales report</div>
+      <div class="drop-status" id="s-sales-body">Drop or click</div>
+    </div>
+  </div>
+
+  <a class="view-link" href="index.html">← View dashboard</a>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://uyynpxixfklbixlnlvlz.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5eW5weGl4ZmtsYml4bG5sdmx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU1OTk4MTYsImV4cCI6MjA5MTE3NTgxNn0.8-4zyHKSupFqg9eSjYK8e7QRL_fM698jeoRZeTYncQk';
+const UPLOAD_PASSWORD = 'WestMotors2025!';
+const VIEW_PASSWORD   = 'Dealers2025!';
+
+const WRITER_TYPES = {'CHRIS SCROGHAM':'lube','CODY ZILLES':'lube','ERIC SCRUTON':'mobile','JOE DANIELS':'mobile'};
+const TECH_SKIP = ['HOUSE TECH','ALL TECHNICIANS'];
+const PM_LABELS = {C:'Customer Pay',W:'Warranty',I:'Internal',S:'Sublet'};
+const PIE_COLORS = {C:'#3b82f6',W:'#22c55e',I:'#a78bfa',S:'#f59e0b'};
+
+let techNames = {};
+
+function checkUploadLogin() {
+  const pw = document.getElementById('upload-pw').value;
+  if (pw === UPLOAD_PASSWORD) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('upload-screen').style.display = 'block';
+    loadTechNames();
+  } else {
+    document.getElementById('upload-err').textContent = 'Incorrect password';
+  }
+}
+
+async function sb(path, method='GET', body=null) {
+  const opts = { method, headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer '+SUPABASE_KEY, 'Content-Type': 'application/json', 'Prefer': 'resolution=merge-duplicates' }};
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(SUPABASE_URL+path, opts);
+  if (!r.ok) { const t = await r.text(); throw new Error(t); }
+  const ct = r.headers.get('content-type')||'';
+  return ct.includes('json') ? r.json() : null;
+}
+
+async function loadTechNames() {
+  try {
+    const rows = await sb('/rest/v1/tech_names?select=initial,full_name');
+    rows.forEach(r => { techNames[r.initial] = r.full_name; });
+    renderNameGrid();
+  } catch(e) { console.error('Could not load names:', e); renderNameGrid(); }
+}
+
+// Collect all initials seen across loaded state
+const knownInitials = new Set();
+
+function renderNameGrid() {
+  const grid = document.getElementById('name-grid');
+  if (knownInitials.size === 0) {
+    grid.innerHTML = '<div style="font-size:11px;color:var(--text3);">Upload tech reports first to see technician initials here.</div>';
+    return;
+  }
+  grid.innerHTML = [...knownInitials].sort().map(init =>
+    `<div class="name-row"><span class="name-init">${init}</span><input class="name-input" id="ni-${init}" placeholder="Full name" value="${techNames[init]||''}"></div>`
+  ).join('');
+}
+
+async function saveNames() {
+  const rows = [...knownInitials].map(init => {
+    const val = (document.getElementById(`ni-${init}`)||{}).value||'';
+    return val.trim() ? { initial: init, full_name: val.trim() } : null;
+  }).filter(Boolean);
+  if (!rows.length) return;
+  try {
+    await sb('/rest/v1/tech_names', 'POST', rows);
+    rows.forEach(r => { techNames[r.initial] = r.full_name; });
+    document.getElementById('save-status').textContent = '✓ Saved';
+    setTimeout(() => { document.getElementById('save-status').textContent = ''; }, 3000);
+  } catch(e) { document.getElementById('save-status').textContent = 'Error saving'; console.error(e); }
+}
+
+function dragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');}
+function dragLeave(e){e.currentTarget.classList.remove('drag-over');}
+function handleDrop(e,type,store){e.preventDefault();e.currentTarget.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)processFile(f,type,store);}
+function handleFile(input,type,store){if(input.files[0])processFile(input.files[0],type,store);}
+
+function setStatus(type,store,cls,msg){
+  const d=document.getElementById(`drop-${type}-${store}`);
+  const s=document.getElementById(`s-${type}-${store}`);
+  d.className='store-drop '+cls;
+  s.textContent=msg;
+}
+
+function processFile(file,type,store){
+  setStatus(type,store,'store-drop uploading','Reading...');
+  const ext=file.name.split('.').pop().toLowerCase();
+  const reader=new FileReader();
+  const onLines = lines => {
+    try {
+      let parsed;
+      if(type==='wip') parsed=parseWIPLines(lines);
+      else parsed=parsePLA(lines,type==='writer');
+      if(!parsed){setStatus(type,store,'store-drop error','Parse failed');return;}
+      uploadToSupabase(type,store,parsed,file.name);
+    } catch(e){setStatus(type,store,'store-drop error','Error: '+e.message);console.error(e);}
+  };
+  if(ext==='csv'){
+    reader.onload=e=>onLines(e.target.result.split('\n'));
+    reader.readAsText(file);
+  } else {
+    reader.onload=e=>{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const aoa=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:''});
+      onLines(aoa.map(r=>r.map(c=>String(c===null||c===undefined?'':c).trim()).join(',')));
+    };
+    reader.readAsArrayBuffer(file);
+  }
+}
+
+async function uploadToSupabase(type,store,data,filename){
+  setStatus(type,store,'store-drop uploading','Uploading...');
+  try {
+    await sb('/rest/v1/reports','POST',[{store,report_type:type,data,uploaded_at:new Date().toISOString()}]);
+    setStatus(type,store,'store-drop done','✓ '+filename);
+    // Register any tech initials
+    if(data.people) data.people.forEach(p=>{if(p.name&&p.name.length<=8)knownInitials.add(p.name);});
+    if(data.laborRows) data.laborRows.forEach(r=>{if(r.name&&r.name!=='HOUSE TECH'&&r.name.length<=8)knownInitials.add(r.name);});
+    renderNameGrid();
+  } catch(e){setStatus(type,store,'store-drop error','Upload failed');console.error(e);}
+}
+
+const pf=s=>parseFloat(String(s||'').replace(/[$,]/g,'').trim())||0;
+
+function parsePLA(lines,isWriter){
+  lines=lines.map(l=>l.trim()).filter(l=>l);
+  const nameCol=isWriter?'ServiceWriter':'Technician';
+  let hi=0;
+  for(let i=0;i<Math.min(lines.length,10);i++){
+    const cells=lines[i].split(',').map(c=>c.trim().replace(/^"|"$/g,''));
+    if(cells[0]===nameCol||cells[1]===nameCol){hi=i;break;}
+  }
+  const headers=lines[hi].split(',').map(h=>h.trim().replace(/^"|"$/g,''));
+  let rows=lines.slice(hi+1).map(line=>{
+    const vals=line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));
+    const obj={};headers.forEach((h,i)=>{obj[h]=vals[i]||'';});return obj;
+  });
+  const norm=r=>{
+    const n={};Object.keys(r).forEach(k=>{
+      const kc=k.trim().replace(/\s+/g,' ');const v=String(r[k]||'').trim();
+      if(kc===nameCol||kc==='ServiceWriter'||kc==='Technician')n._rawName=v;
+      if(kc==='PM')n.PM=v;if(kc==='ROCount'||kc==='# RO')n.ROCount=v;
+      if(kc==='Hours')n.Hours=v;if(kc==='HRS/RO'||kc==='Hrs/RO')n.HrsRO=v;
+      if(kc==='ELR')n.ELR=v;if(kc==='Retail')n.Retail=v;
+      if(kc==='Gross')n.Gross=v;if(kc==='Gross%'||kc==='Gross %')n.GrossPct=v;
+    });return n;
+  };
+  rows=rows.map(r=>({...r,...norm(r)}));
+  let last='';
+  rows=rows.map(r=>{const v=(r._rawName||'').trim();if(v)last=v;return{...r,_name:last};});
+  const skip=n=>n.toLowerCase().includes('total')||n.toLowerCase().includes('all service')||n.toLowerCase().includes('all tech')||n.toLowerCase().includes('grand');
+  const grandRow=rows.find(r=>r._name.toLowerCase().includes('grand total'));
+  const grand=grandRow?{ro:pf(grandRow.ROCount),hours:pf(grandRow.Hours),hro:pf(grandRow.HrsRO),elr:pf(grandRow.ELR),retail:pf(grandRow.Retail),gross:pf(grandRow.Gross),grossPct:pf(grandRow.GrossPct)}:null;
+  const allPmRows=rows.filter(r=>r._name.toLowerCase().includes('all service')||r._name.toLowerCase().includes('all tech'));
+  const pie=Object.entries(PM_LABELS).map(([pm,label])=>{const r=allPmRows.find(x=>x.PM===pm);return r?{pm,label,gross:pf(r.Gross),ro:pf(r.ROCount),color:PIE_COLORS[pm]}:null;}).filter(p=>p&&p.gross>0);
+  const names=[...new Set(rows.filter(r=>r._name&&!skip(r._name)).map(r=>r._name))];
+  const people=names.filter(n=>!TECH_SKIP.includes(n.toUpperCase())).map(name=>{
+    const wrows=rows.filter(r=>r._name===name&&r.PM&&!skip(r._name));
+    const gross=wrows.reduce((s,r)=>s+pf(r.Gross),0);const ro=wrows.reduce((s,r)=>s+pf(r.ROCount),0);
+    const hrs=wrows.reduce((s,r)=>s+pf(r.Hours),0);const retail=wrows.reduce((s,r)=>s+pf(r.Retail),0);
+    const hro=ro>0?+(hrs/ro).toFixed(2):0;const elr=hrs>0?+(retail/hrs).toFixed(2):0;
+    const type=isWriter?(WRITER_TYPES[name]||'fs'):'fs';
+    const pmBreakdown={};wrows.forEach(r=>{if(r.PM)pmBreakdown[r.PM]={gross:pf(r.Gross),ro:pf(r.ROCount),hrs:pf(r.Hours),retail:pf(r.Retail)};});
+    return{name,gross,ro,hrs,hro,elr,type,pmBreakdown};
+  }).filter(p=>p.ro>0||p.gross>0);
+  return{grand,pie,people};
+}
+
+function parseSales(lines) {
+  lines = lines.map(l => l.trim()).filter(l => l);
+  let hi = 0;
+  for (let i = 0; i < Math.min(lines.length, 10); i++) {
+    const cells = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+    if (cells.includes('Writer') || cells.includes('LaborSales') || cells.includes('TotalSales')) { hi = i; break; }
+  }
+  const headers = lines[hi].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+  const rows = lines.slice(hi + 1)
+    .map(line => { const vals = line.split(',').map(v => v.trim().replace(/^"|"$/g, '')); const obj = {}; headers.forEach((h, i) => { obj[h] = vals[i] || ''; }); return obj; })
+    .filter(r => r.Writer && r.Writer.trim() && !r.Writer.includes('Total') && !r.Writer.includes('==='));
+  const writers = rows.map(r => ({
+    name: r.Writer.trim(), ro: pf(r.ROCount),
+    laborSales: pf(r.LaborSales), laborGross: pf(r.LaborGross),
+    partsSales: pf(r.PartsSales), partsGross: pf(r.PartsGross),
+    subletSales: pf(r.SubletSales), subletGross: pf(r.SubletGross),
+    totalSales: pf(r.TotalSales), totalGross: pf(r.TotalGross),
+    type: WRITER_TYPES[r.Writer.trim()] || 'fs'
+  }));
+  const totals = writers.reduce((t, w) => {
+    t.ro+=w.ro; t.laborSales+=w.laborSales; t.laborGross+=w.laborGross;
+    t.partsSales+=w.partsSales; t.partsGross+=w.partsGross;
+    t.subletSales+=w.subletSales; t.subletGross+=w.subletGross;
+    t.totalSales+=w.totalSales; t.totalGross+=w.totalGross; return t;
+  }, {ro:0,laborSales:0,laborGross:0,partsSales:0,partsGross:0,subletSales:0,subletGross:0,totalSales:0,totalGross:0});
+  return { writers, totals };
+}
+
+function parseWIPLines(lines){
+  lines=lines.map(l=>l.trim()).filter(l=>l);
+  const laborRows=[],partsRows=[],otherRows=[];
+  let section='';
+  let finalTotal={retail:0,cost:0,cp:0,war:0,int:0,con:0};
+  lines.forEach(line=>{
+    if(!line.trim()||line.startsWith('='))return;
+    const cells=line.split(',').map(c=>c.trim().replace(/^"|"$/g,''));
+    const c0=cells[0]||'',c1=cells[1]||'';
+    if(c0==='Parts:'){section='parts';return;}if(c0==='Labor:'){section='labor';return;}if(c0==='Other:'){section='other';return;}
+    if(c0.startsWith('===')||c1.startsWith('==='))return;
+    if(c0==='Cust'||c0==='Cost'||c1==='Cost')return;
+    if(!c1||c1==='')return;
+    if(c0.startsWith('Total')||c0.startsWith('Final')){if(c0.startsWith('Final'))finalTotal={cost:pf(cells[2]),retail:pf(cells[3]),cp:pf(cells[4]),war:pf(cells[5]),int:pf(cells[6]),con:pf(cells[7])};return;}
+    if(!section)return;
+    const row={id:c0,name:c1,cost:pf(cells[2]),retail:pf(cells[3]),cp:pf(cells[4]),war:pf(cells[5]),int:pf(cells[6]),con:pf(cells[7])};
+    if(section==='labor')laborRows.push(row);
+    else if(section==='parts')partsRows.push(row);
+    else if(section==='other')otherRows.push({name:c1,cost:pf(cells[2]),retail:pf(cells[3])});
+  });
+  const laborTotal=laborRows.reduce((t,r)=>{t.cost+=r.cost;t.retail+=r.retail;t.cp+=r.cp;t.war+=r.war;t.int+=r.int;t.con+=r.con;return t;},{cost:0,retail:0,cp:0,war:0,int:0,con:0});
+  const partsTotal=partsRows.reduce((t,r)=>{t.cost+=r.cost;t.retail+=r.retail;return t;},{cost:0,retail:0});
+  const otherTotal=otherRows.reduce((t,r)=>{t.cost+=r.cost;t.retail+=r.retail;return t;},{cost:0,retail:0});
+  if(!finalTotal.retail){finalTotal.retail=laborTotal.retail+partsTotal.retail+otherTotal.retail;finalTotal.cost=laborTotal.cost+partsTotal.cost+otherTotal.cost;finalTotal.cp=laborTotal.cp;finalTotal.war=laborTotal.war;finalTotal.int=laborTotal.int;finalTotal.con=laborTotal.con;}
+  return{laborRows,partsRows,otherRows,laborTotal,partsTotal,otherTotal,finalTotal};
+}
+</script>
+</body>
+</html>
